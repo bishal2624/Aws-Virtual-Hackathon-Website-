@@ -1,0 +1,311 @@
+:root {
+  /* Color Palette Tokens (Section 4 of Master Implementation Prompt) */
+  --color-obsidian: #050505;
+  --color-midnight: #080D1A;
+  --color-charcoal: #171717;
+  --color-moonlight: #C8CDD8;
+  --color-pumpkin: #FF7518;
+  --color-amber: #FFB000;
+  --color-acid: #A3FF12;
+  --color-purple: #8B5CF6;
+
+  /* Aliases */
+  --bg-black: var(--color-obsidian);
+  --bg-charcoal: var(--color-charcoal);
+  --text-bone: #F4F1EB;
+  --text-ash: var(--color-moonlight);
+  --text-muted: #8E96A6;
+  --border-grey: rgba(200, 205, 216, 0.12);
+  --accent-orange: var(--color-pumpkin);
+  --accent-green: var(--color-acid);
+  --accent-purple: var(--color-purple);
+  --accent-amber: var(--color-amber);
+
+  /* Geometry & Radii (Strict Rule: Button 6px, Badge 4px, Card 8px) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Typography Families (Self-hosted via @fontsource) */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-heading: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Motion Timing */
+  --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-standard: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Global Reset & Base */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-body);
+  background-color: var(--color-obsidian);
+  color: #F4F1EB;
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-obsidian);
+  color: var(--color-moonlight);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Container Constraint */
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+}
+
+/* High Contrast Focus-Visible Outline on Every Interactive Control */
+:focus-visible {
+  outline: 2px solid var(--color-pumpkin) !important;
+  outline-offset: 2px !important;
+}
+
+/* Buttons (Strict Rule: Solid colors, NO gradient fills, radius 6px) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--color-pumpkin);
+  color: #050505;
+  border-color: var(--color-pumpkin);
+}
+
+.btn-primary:hover {
+  background-color: #E65A00;
+  border-color: #E65A00;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: rgba(23, 23, 23, 0.85);
+  color: #F4F1EB;
+  border-color: rgba(200, 205, 216, 0.2);
+}
+
+.btn-secondary:hover {
+  background-color: #171717;
+  border-color: var(--color-pumpkin);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* Accessible Screen Reader Only Utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Navigation Links Interactive State */
+.nav-link:hover {
+  color: var(--color-pumpkin) !important;
+}
+
+/* Responsive Display Classes */
+@media (max-width: 1024px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .desktop-control {
+    display: none !important;
+  }
+  .mobile-nav-toggle {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .control-label {
+    display: none;
+  }
+  .desktop-rubric-table {
+    display: none !important;
+  }
+  .mobile-rubric-cards {
+    display: flex !important;
+  }
+}
+
+/* Atmospheric Halloween Side Decorations Styles and Keyframes */
+.halloween-candle-flicker {
+  animation: candleFlicker 3.2s ease-in-out infinite alternate;
+}
+
+@keyframes candleFlicker {
+  0% {
+    opacity: 0.88;
+    filter: drop-shadow(0 0 6px rgba(255, 117, 24, 0.4));
+  }
+  30% {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px rgba(255, 117, 24, 0.7));
+  }
+  60% {
+    opacity: 0.92;
+    filter: drop-shadow(0 0 8px rgba(255, 117, 24, 0.5));
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 16px rgba(255, 180, 0, 0.8));
+  }
+}
+
+.halloween-ghost-float {
+  animation: ghostFloat 4.8s ease-in-out infinite alternate;
+}
+
+@keyframes ghostFloat {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-2deg);
+  }
+  100% {
+    transform: translateY(-16px) rotate(2deg);
+  }
+}
+
+.halloween-ember-rise {
+  animation: emberRise ease-in-out infinite;
+}
+
+@keyframes emberRise {
+  0% {
+    transform: translateY(0px) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-90px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* Responsive Side Rails */
+@media (max-width: 1280px) {
+  .halloween-side-rail {
+    width: clamp(70px, 9vw, 110px) !important;
+    opacity: 0.85;
+  }
+}
+
+@media (max-width: 1024px) {
+  .halloween-side-rail {
+    width: clamp(50px, 7vw, 80px) !important;
+    opacity: 0.65;
+  }
+}
+
+@media (max-width: 768px) {
+  /* On mobile portrait, hide side decorations completely to preserve readability and guarantee 0px horizontal overflow */
+  .halloween-side-rail {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halloween-candle-flicker,
+  .halloween-ghost-float,
+  .halloween-ember-rise {
+    animation: none !important;
+  }
+}
+
+/* -------------------------------------------------------------
+   Phase 3: Cinematic Entry Transition Overlay
+   Sequence: click -> content exits -> overlay covers -> release video -> navigate -> reveal
+   ------------------------------------------------------------- */
+.cinematic-entry-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999999;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 65% at 50% 50%, #2A0508 0%, #030303 100%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), visibility 500ms;
+}
+
+.cinematic-entry-overlay.is-covering {
+  pointer-events: all;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cinematic-entry-overlay.is-revealing {
+  pointer-events: none;
+  opacity: 0;
+  visibility: visible;
+  transition: opacity 400ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic-entry-overlay {
+    display: none !important;
+    transition: none !important;
+  }
+}
