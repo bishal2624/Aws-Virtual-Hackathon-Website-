@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, Users, ArrowRight } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Users, ArrowRight, Copy, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { EVENT_CONFIG } from '../data/hackathonData';
 
@@ -18,6 +18,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
   const [serverError, setServerError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -65,6 +66,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
       if (res.ok && data.success) {
         setSuccessData({
           referenceCode: data.referenceCode,
+          emailSent: Boolean(data.emailSent),
           fullName: formData.fullName,
           email: formData.email,
           teamName: formData.teamName || 'Individual Builder',
@@ -83,15 +85,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
         setServerError(data.error || 'Registration failed. Please verify your details.');
       }
     } catch (err) {
-      // In case dev server has not started backend proxy, generate reference honestly
-      const offlineCode = 'REG-2026-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      setSuccessData({
-        referenceCode: offlineCode,
-        fullName: formData.fullName,
-        email: formData.email,
-        teamName: formData.teamName || 'Individual Builder',
-        trackName: EVENT_CONFIG.tracks.find(t => t.id === formData.trackId)?.name || 'Track 01'
-      });
+      setServerError('Unable to reach the registration server. Please check your internet connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -188,33 +182,102 @@ export default function RegistrationModal({ isOpen, onClose }) {
             </div>
 
             <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '24px', fontWeight: 700, color: '#F4F1EB', marginBottom: '8px' }}>
-              Registration Recorded
+              🎃 Registration Successful!
             </h3>
 
-            <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#C8CDD8', marginBottom: '24px' }}>
-              Your registration has been submitted for AWS Virtual Hackathon 2026. Keep this reference code for your records.
+            <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#C8CDD8', marginBottom: '20px' }}>
+              Your registration has been recorded successfully.
             </p>
+
+            {/* Email delivery confirmation status */}
+            <div
+              style={{
+                backgroundColor: successData.emailSent ? 'rgba(163, 255, 18, 0.08)' : 'rgba(255, 117, 24, 0.08)',
+                border: `1px solid ${successData.emailSent ? 'rgba(163, 255, 18, 0.3)' : 'rgba(255, 117, 24, 0.3)'}`,
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 16px',
+                marginBottom: '20px',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}
+            >
+              {successData.emailSent ? (
+                <>
+                  <CheckCircle size={18} color="var(--accent-green)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#E2E8F0' }}>
+                    A confirmation email has been sent to <strong>{successData.email}</strong>. Please check your inbox and spam folder.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={18} color="#FF7518" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#E2E8F0' }}>
+                    Your registration is successful, but we couldn't send the confirmation email right now. Please save your reference ID.
+                  </p>
+                </>
+              )}
+            </div>
 
             <div
               style={{
                 backgroundColor: '#050505',
                 border: '1px solid var(--accent-green)',
                 borderRadius: 'var(--radius-md)',
-                padding: '16px',
-                marginBottom: '24px'
+                padding: '16px 20px',
+                marginBottom: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
               }}
             >
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                OFFICIAL REFERENCE CODE
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  YOUR REFERENCE ID:
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', fontWeight: 800, color: 'var(--accent-green)' }}>
+                  {successData.referenceCode}
+                </div>
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', fontWeight: 800, color: 'var(--accent-green)' }}>
-                {successData.referenceCode}
-              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(successData.referenceCode);
+                  setCopiedCode(true);
+                  setTimeout(() => setCopiedCode(false), 2000);
+                }}
+                className="btn btn-secondary"
+                style={{
+                  minHeight: '36px',
+                  padding: '0 12px',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-mono)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                title="Copy reference code to clipboard"
+              >
+                {copiedCode ? (
+                  <>
+                    <Check size={14} color="var(--accent-green)" />
+                    <span style={{ color: 'var(--accent-green)' }}>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} />
+                    <span>Copy Code</span>
+                  </>
+                )}
+              </button>
             </div>
 
             <div style={{ textAlign: 'left', fontSize: '13px', color: '#C8CDD8', lineHeight: 1.7, marginBottom: '24px' }}>
-              <div><strong>Primary Contact:</strong> {successData.fullName}</div>
-              <div><strong>Email:</strong> {successData.email}</div>
+              <div><strong>Participant Name:</strong> {successData.fullName}</div>
+              <div><strong>Registered Email:</strong> {successData.email}</div>
               <div><strong>Team Designation:</strong> {successData.teamName}</div>
               <div><strong>Challenge Track:</strong> {successData.trackName}</div>
             </div>
@@ -234,7 +297,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
               PARTICIPANT REGISTRATION
             </div>
             <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '22px', fontWeight: 700, color: '#F4F1EB', marginBottom: '8px' }}>
-              AWS Virtual Hackathon 2026
+              Hack - To - ween
             </h3>
             <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#C8CDD8', marginBottom: '20px' }}>
               Fill in your builder details. Individual registrations and teams of up to 4 are permitted.

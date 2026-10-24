@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import Navbar from '../components/Navbar';
 import HeroSection from '../components/HeroSection';
 import GateSection from '../components/GateSection';
@@ -25,7 +25,10 @@ const SceneCanvas = lazy(() => import('../components/3d/SceneCanvas'));
  * MainSite component representing Page B (/hack).
  * Preserves the entire existing hackathon site, 3D experience, and functionality.
  */
-export default function MainSite() {
+export default function MainSite({
+  isAudioActive: propIsAudioActive,
+  onToggleAudio: propOnToggleAudio
+} = {}) {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [activeTrackIdx, setActiveTrackIdx] = useState(0);
   const [is3dMounted, setIs3dMounted] = useState(false);
@@ -38,20 +41,27 @@ export default function MainSite() {
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
-  // Global ambient sound state
-  const [isAudioActive, setIsAudioActive] = useState(false);
+  // Global audio state (synchronized with root App or fallback to local)
+  const [localAudioActive, setLocalAudioActive] = useState(true);
+  const isAudioActive = propIsAudioActive !== undefined ? propIsAudioActive : localAudioActive;
 
-  const handleToggleAudio = () => {
-    if (isAudioActive) {
-      ambientSound.stop();
-      setIsAudioActive(false);
-    } else {
-      const started = ambientSound.start();
-      if (started) {
-        setIsAudioActive(true);
+  const handleToggleAudio = propOnToggleAudio || (() => {
+    setLocalAudioActive((prev) => {
+      const next = !prev;
+      if (!next) {
+        try {
+          ambientSound.stop();
+        } catch {}
       }
+      return next;
+    });
+  });
+
+  const handlePlaybackStarted = useCallback(() => {
+    if (propIsAudioActive === undefined) {
+      setLocalAudioActive(true);
     }
-  };
+  }, [propIsAudioActive]);
 
 
   const isModalOpen = isRegisterOpen || isSubmitOpen || isPrivacyOpen || isTermsOpen;
@@ -185,19 +195,13 @@ export default function MainSite() {
         onToggleAudio={handleToggleAudio}
       />
 
-      {/* Cinematic Haunted Voice Transmission Control (Fixed HUD at bottom-left) */}
-      <div
-        className="haunted-voice-floating-wrapper"
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          left: 'clamp(16px, 3vw, 32px)',
-          zIndex: 50,
-          pointerEvents: 'auto'
-        }}
-      >
-        <HauntedVoice isGlobalSoundActive={isAudioActive} />
-      </div>
+      {/* Headless Haunted Voice Audio Controller (Active when MainSite is rendered standalone) */}
+      {propIsAudioActive === undefined && (
+        <HauntedVoice
+          isSoundEnabled={isAudioActive}
+          onPlaybackStarted={handlePlaybackStarted}
+        />
+      )}
 
       {/* Atmospheric Halloween Side Decorations (Left & Right Margins with Scroll Reveal) */}
       <HalloweenSideDecorations

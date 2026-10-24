@@ -10,6 +10,7 @@
     "test": "vitest run --pool=threads",
     "server": "node server/index.js",
     "check:links": "node scripts/check-links.js",
+    "check:email": "node scripts/verify-email.js",
     "check:launch": "vitest run --pool=threads && node scripts/check-launch.js"
   },
   "dependencies": {
@@ -21,12 +22,15 @@
     "@react-three/fiber": "^9.8.2",
     "@types/three": "^0.186.0",
     "canvas-confetti": "^1.9.4",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.1",
     "gsap": "^3.15.0",
     "helmet": "^8.3.0",
     "lucide-react": "^1.16.0",
+    "nodemailer": "^10.2.1",
+    "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.186.1",

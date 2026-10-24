@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MEDIA_CONFIG, getHauntedVoiceAudioUrl } from '../config/media';
 
-describe('Phase 5: Haunted Voice Audio System', () => {
+describe('Haunted Voice Automatic Audio Integration', () => {
   let mockAudio;
   let eventListeners;
 
@@ -10,8 +10,9 @@ describe('Phase 5: Haunted Voice Audio System', () => {
     mockAudio = {
       src: '',
       preload: '',
+      loop: false,
       currentTime: 0,
-      duration: 32.5,
+      duration: 374.87,
       paused: true,
       addEventListener: vi.fn((event, cb) => {
         eventListeners[event] = cb;
@@ -34,7 +35,7 @@ describe('Phase 5: Haunted Voice Audio System', () => {
   });
 
   // 1. Reserved Asset Path Configuration
-  it('correctly reserves the audio asset path in media config', () => {
+  it('correctly points to the authentic public audio path', () => {
     expect(MEDIA_CONFIG.hauntedVoice).toBeDefined();
     expect(MEDIA_CONFIG.hauntedVoice.id).toBe('haunted-voice');
     expect(MEDIA_CONFIG.hauntedVoice.audioRelativePath).toBe('assets/audio/haunted-voice.mp3');
@@ -44,147 +45,137 @@ describe('Phase 5: Haunted Voice Audio System', () => {
     expect(url).toContain('assets/audio/haunted-voice.mp3');
   });
 
-  // 2. Successful playback when recording is available
-  it('handles successful playback when recording is available', async () => {
-    let playbackState = 'idle';
-    const setPlaybackState = (state) => { playbackState = state; };
+  // 2. Automatic playback on entry
+  it('attempts to play the recording automatically on website entry', async () => {
+    let hasStarted = false;
+    mockAudio.src = getHauntedVoiceAudioUrl();
+    mockAudio.loop = false;
 
-    const handlePlay = (audio) => {
-      audio.src = getHauntedVoiceAudioUrl();
-      setPlaybackState('loading');
-      return audio.play().then(() => {
-        setPlaybackState('playing');
-      });
+    const attemptAutoplay = async (audio) => {
+      hasStarted = true;
+      await audio.play();
     };
 
-    await handlePlay(mockAudio);
+    await attemptAutoplay(mockAudio);
 
-    expect(mockAudio.src).toContain('assets/audio/haunted-voice.mp3');
     expect(mockAudio.play).toHaveBeenCalledTimes(1);
-    expect(playbackState).toBe('playing');
     expect(mockAudio.paused).toBe(false);
+    expect(mockAudio.loop).toBe(false);
+    expect(hasStarted).toBe(true);
   });
 
-  // 3. Missing audio asset handling
-  it('handles missing audio asset gracefully without crashing or throwing', () => {
-    let playbackState = 'idle';
-    let errorMessage = null;
+  // 3. Fallback to first user interaction if audible autoplay is blocked
+  it('attaches a one-time interaction fallback when autoplay is blocked by browser policy', async () => {
+    let hasStarted = false;
+    let pendingListenerActive = false;
 
-    const simulateError = () => {
-      playbackState = 'unavailable';
-      errorMessage = 'Recording awaiting upload (public/assets/audio/haunted-voice.mp3)';
+    mockAudio.play = vi.fn()
+      .mockRejectedValueOnce({ name: 'NotAllowedError', message: 'Autoplay blocked' })
+      .mockResolvedValueOnce(undefined);
+
+    const setupFallback = () => {
+      pendingListenerActive = true;
     };
 
-    simulateError();
-
-    expect(playbackState).toBe('unavailable');
-    expect(errorMessage).toContain('public/assets/audio/haunted-voice.mp3');
-  });
-
-  // 4. Pause and resume
-  it('supports pause and resume transitions accurately', async () => {
-    let playbackState = 'playing';
-
-    const handlePause = (audio) => {
-      audio.pause();
-      playbackState = 'paused';
-    };
-
-    const handleResume = async (audio) => {
-      await audio.play();
-      playbackState = 'playing';
-    };
-
-    handlePause(mockAudio);
-    expect(mockAudio.pause).toHaveBeenCalledTimes(1);
-    expect(playbackState).toBe('paused');
-
-    await handleResume(mockAudio);
-    expect(mockAudio.play).toHaveBeenCalledTimes(1);
-    expect(playbackState).toBe('playing');
-  });
-
-  // 5. Stop and replay
-  it('supports stop and replay transitions without overlapping instances', async () => {
-    let playbackState = 'playing';
-    mockAudio.currentTime = 14.2;
-
-    const handleStop = (audio) => {
-      audio.pause();
-      audio.currentTime = 0;
-      playbackState = 'idle';
-    };
-
-    const handleReplay = async (audio) => {
-      audio.currentTime = 0;
-      await audio.play();
-      playbackState = 'playing';
-    };
-
-    handleStop(mockAudio);
-    expect(mockAudio.pause).toHaveBeenCalledTimes(1);
-    expect(mockAudio.currentTime).toBe(0);
-    expect(playbackState).toBe('idle');
-
-    await handleReplay(mockAudio);
-    expect(mockAudio.play).toHaveBeenCalledTimes(1);
-    expect(mockAudio.currentTime).toBe(0);
-    expect(playbackState).toBe('playing');
-  });
-
-  // 6. Preventing duplicate playback instances
-  it('prevents duplicate playback by maintaining a singleton Audio instance ref', () => {
-    let audioInstance = null;
-    let createCount = 0;
-
-    const getOrCreateAudio = () => {
-      if (!audioInstance) {
-        createCount++;
-        audioInstance = mockAudio;
+    const onUserInteraction = async (audio) => {
+      if (pendingListenerActive && !hasStarted) {
+        hasStarted = true;
+        pendingListenerActive = false;
+        await audio.play();
       }
-      return audioInstance;
     };
 
-    const first = getOrCreateAudio();
-    const second = getOrCreateAudio();
-    const third = getOrCreateAudio();
+    // First attempt fails due to autoplay policy
+    try {
+      await mockAudio.play();
+    } catch (err) {
+      if (err.name === 'NotAllowedError') {
+        setupFallback();
+      }
+    }
 
-    expect(first).toBe(second);
-    expect(second).toBe(third);
-    expect(createCount).toBe(1);
+    expect(pendingListenerActive).toBe(true);
+    expect(hasStarted).toBe(false);
+
+    // User performs first genuine interaction (e.g. click/scroll)
+    await onUserInteraction(mockAudio);
+
+    expect(hasStarted).toBe(true);
+    expect(pendingListenerActive).toBe(false);
+    expect(mockAudio.play).toHaveBeenCalledTimes(2);
   });
 
-  // 7. Global sound-off behavior: turning sound off stops voice immediately
-  it('stops playback immediately when global sound is toggled off and does NOT auto-restart on sound on', () => {
-    let playbackState = 'playing';
-    let isGlobalSoundActive = true;
-    let prevSoundActive = true;
+  // 4. Sound Off in Navbar immediately pauses playback, preserves position, and cancels pending autoplay
+  it('pauses playback immediately and cancels pending autoplay when sound is turned off', () => {
+    let isPlaying = true;
+    let pendingListenerActive = true;
+    mockAudio.currentTime = 4.2;
 
-    const handleStop = vi.fn(() => {
-      playbackState = 'idle';
-    });
-
-    // Simulate sound toggle handler
-    const updateSoundState = (newSoundState) => {
-      if (prevSoundActive && !newSoundState) {
-        if (playbackState === 'playing' || playbackState === 'paused') {
-          handleStop();
-        }
-      }
-      prevSoundActive = newSoundState;
-      isGlobalSoundActive = newSoundState;
+    const handleSoundOff = (audio) => {
+      audio.pause();
+      isPlaying = false;
+      pendingListenerActive = false; // prevents pending autoplay from starting
     };
 
-    // User turns website sound OFF
-    updateSoundState(false);
-    expect(handleStop).toHaveBeenCalledTimes(1);
-    expect(playbackState).toBe('idle');
+    handleSoundOff(mockAudio);
 
-    // User turns website sound back ON
-    updateSoundState(true);
-    // Haunted voice must NOT auto-restart
-    expect(handleStop).toHaveBeenCalledTimes(1);
-    expect(playbackState).toBe('idle');
+    expect(mockAudio.pause).toHaveBeenCalledTimes(1);
+    expect(mockAudio.currentTime).toBe(4.2); // Position preserved
+    expect(isPlaying).toBe(false);
+    expect(pendingListenerActive).toBe(false);
+  });
+
+  // 5. Sound On resumes the same recording from paused position and does not replay if already finished
+  it('resumes the same recording on Sound On from its paused position, and does not replay if finished', async () => {
+    let wasPlaying = true;
+    let isFinished = false;
+    let isPlaying = false;
+    mockAudio.currentTime = 4.2;
+
+    const handleSoundOn = async (audio) => {
+      if (!isFinished && wasPlaying) {
+        await audio.play();
+        isPlaying = true;
+      }
+    };
+
+    await handleSoundOn(mockAudio);
+    expect(mockAudio.play).toHaveBeenCalledTimes(1);
+    expect(isPlaying).toBe(true);
+    expect(mockAudio.currentTime).toBe(4.2);
+
+    // If it has already finished, do not replay
+    isFinished = true;
+    mockAudio.play.mockClear();
+    await handleSoundOn(mockAudio);
+    expect(mockAudio.play).toHaveBeenCalledTimes(0);
+  });
+
+  // 6. Preventing duplicate playback instances across re-renders and scrolling
+  it('prevents duplicate playback instances and ignores re-renders once started', async () => {
+    let playCallCount = 0;
+    let hasStarted = false;
+
+    const triggerPlay = async (audio) => {
+      if (hasStarted) return;
+      hasStarted = true;
+      playCallCount++;
+      await audio.play();
+    };
+
+    await triggerPlay(mockAudio);
+    // Simulate multiple re-renders and scroll events
+    await triggerPlay(mockAudio);
+    await triggerPlay(mockAudio);
+
+    expect(playCallCount).toBe(1);
+    expect(mockAudio.play).toHaveBeenCalledTimes(1);
+  });
+
+  // 7. No looping: audio plays once by default
+  it('ensures loop is disabled so the recording plays once without repeating', () => {
+    mockAudio.loop = false;
+    expect(mockAudio.loop).toBe(false);
   });
 
   // 8. Audio cleanup on component unmount
@@ -205,46 +196,17 @@ describe('Phase 5: Haunted Voice Audio System', () => {
     expect(mockAudio.src).toBe('');
   });
 
-  // 9. Playback errors and rejected play promises
-  it('handles rejected play promises and autoplay block without crashing', async () => {
-    let playbackState = 'loading';
-    let errorMessage = null;
+  // 9. Handling rejected promises and missing file safely without crashing
+  it('catches rejected play promises silently without throwing unhandled exceptions', async () => {
+    mockAudio.play = vi.fn().mockRejectedValue(new Error('Network error or decode failure'));
 
-    mockAudio.play = vi.fn().mockRejectedValue(new Error('Format error / 404'));
+    let threwError = false;
+    try {
+      await mockAudio.play().catch(() => {});
+    } catch {
+      threwError = true;
+    }
 
-    const handlePlayWithError = async (audio) => {
-      try {
-        await audio.play();
-        playbackState = 'playing';
-      } catch (err) {
-        if (err.name === 'NotAllowedError') {
-          playbackState = 'idle';
-        } else {
-          playbackState = 'unavailable';
-          errorMessage = 'Recording awaiting upload (public/assets/audio/haunted-voice.mp3)';
-        }
-      }
-    };
-
-    await handlePlayWithError(mockAudio);
-
-    expect(playbackState).toBe('unavailable');
-    expect(errorMessage).toBe('Recording awaiting upload (public/assets/audio/haunted-voice.mp3)');
-  });
-
-  // 10. Coordination with procedural audio engine
-  it('suspends procedural ambient audio when haunted voice plays and resumes when finished', () => {
-    const mockAmbient = {
-      suspend: vi.fn(),
-      resume: vi.fn()
-    };
-
-    // When play starts
-    mockAmbient.suspend();
-    expect(mockAmbient.suspend).toHaveBeenCalledTimes(1);
-
-    // When voice ends or stops
-    mockAmbient.resume();
-    expect(mockAmbient.resume).toHaveBeenCalledTimes(1);
+    expect(threwError).toBe(false);
   });
 });

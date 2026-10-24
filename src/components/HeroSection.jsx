@@ -140,29 +140,31 @@ export default function HeroSection({ onOpenRegister }) {
 
           {/* Title (Single H1 on the page) */}
           <h1
+            className="font-horror-gothic"
             style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2.55rem, 6.8vw, 5.65rem)',
-              lineHeight: 0.98,
-              fontWeight: 800,
+              fontFamily: 'var(--font-horror-gothic)',
+              fontSize: 'clamp(2.4rem, 6.5vw, 5.4rem)',
+              lineHeight: 1.05,
+              fontWeight: 400,
               color: '#F4F1EB',
-              letterSpacing: '-0.02em',
-              marginBottom: '20px'
+              letterSpacing: '0.03em',
+              marginBottom: '20px',
+              wordBreak: 'break-word'
             }}
           >
-            AWS VIRTUAL<br />
-            HACKATHON 2026
+            Hack - To - ween
           </h1>
 
-          {/* Supporting Headline */}
+          {/* Supporting Horror Decorative Headline */}
           <div
+            className="font-horror-drip"
             style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 'clamp(1.4rem, 3vw, 2.4rem)',
-              fontWeight: 700,
+              fontFamily: 'var(--font-horror-drip)',
+              fontSize: 'clamp(1.4rem, 3.2vw, 2.5rem)',
+              fontWeight: 400,
               color: 'var(--accent-orange)',
-              letterSpacing: '0.02em',
-              lineHeight: 1.15,
+              letterSpacing: '0.04em',
+              lineHeight: 1.25,
               marginBottom: '18px'
             }}
           >

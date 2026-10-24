@@ -1,6 +1,6 @@
-# AWS Virtual Hackathon 2026: Immersive 3D Experience
+# Hack - To - ween: Immersive 3D Experience
 
-Official production repository for the **AWS Virtual Hackathon 2026**, an online, national flagship student-builder cloud hackathon.
+Official production repository for **Hack - To - ween**, an online, national flagship student-builder cloud hackathon.
 
 **Collaboration Banner:** `AWS SBG IITJ × AWS SBG GSMCOE`  
 **Organizers:** Organized by AWS Student Builder Groups, IIT Jodhpur, and GSMCOE.  

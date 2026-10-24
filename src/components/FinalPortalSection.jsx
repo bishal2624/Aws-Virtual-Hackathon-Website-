@@ -112,25 +112,42 @@ export default function FinalPortalSection({
           </div>
 
           <h2
+            className="font-horror-gothic"
             style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2.6rem, 6.5vw, 5.2rem)',
-              lineHeight: 1.0,
-              fontWeight: 800,
+              fontFamily: 'var(--font-horror-gothic)',
+              fontSize: 'clamp(2.4rem, 6.2vw, 5.0rem)',
+              lineHeight: 1.05,
+              fontWeight: 400,
               color: '#F4F1EB',
-              marginBottom: '20px'
+              letterSpacing: '0.03em',
+              marginBottom: '16px'
             }}
           >
             YOUR NEXT BUILD<br />
             STARTS HERE
           </h2>
 
+          {/* Horror Decorative Dripping Accent */}
+          <div
+            className="font-horror-drip"
+            style={{
+              fontFamily: 'var(--font-horror-drip)',
+              fontSize: 'clamp(1.2rem, 2.6vw, 2.0rem)',
+              fontWeight: 400,
+              color: 'var(--accent-orange)',
+              letterSpacing: '0.05em',
+              marginBottom: '16px'
+            }}
+          >
+            THE CITADEL AWAITS YOUR CREATION
+          </div>
+
           <div
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '14px',
               fontWeight: 700,
-              color: 'var(--accent-orange)',
+              color: '#F4F1EB',
               letterSpacing: '0.08em',
               marginBottom: '20px'
             }}
@@ -192,7 +209,7 @@ export default function FinalPortalSection({
             {/* Identity Col */}
             <div>
               <div style={{ fontFamily: 'var(--font-heading)', fontSize: '16px', fontWeight: 700, color: '#F4F1EB', marginBottom: '8px' }}>
-                AWS VIRTUAL HACKATHON 2026
+                Hack - To - ween
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--accent-orange)', marginBottom: '14px' }}>
                 {EVENT_CONFIG.dates.headlineDate}
@@ -302,7 +319,7 @@ export default function FinalPortalSection({
             }}
           >
             <div>
-              &copy; {currentYear} AWS Virtual Hackathon Organizing Committee.
+              &copy; {currentYear} Hack - To - ween Organizing Committee.
             </div>
             <div>
               AWS and Amazon Web Services are trademarks of Amazon.com, Inc. or its affiliates.

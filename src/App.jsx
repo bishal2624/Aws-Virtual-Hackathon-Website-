@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import IntroPage from './pages/Intro/IntroPage';
+import HauntedVoice from './components/audio/HauntedVoice';
+import { hauntedVoiceManager } from './utils/hauntedVoiceManager';
 
 // Lazy-load the heavy hackathon site so / pays zero 3D bundle cost
 const MainSite = lazy(() => import('./pages/MainSite'));
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 
 /**
  * Normalizes window.location.pathname relative to Vite's base path.
@@ -50,7 +53,8 @@ export default function App() {
       return '/hack';
     }
 
-    // Default to /hack if directly requested, otherwise /
+    // Handle /admin, /hack, or /
+    if (norm.startsWith('/admin')) return '/admin';
     return norm.startsWith('/hack') ? '/hack' : '/';
   });
 
@@ -66,7 +70,7 @@ export default function App() {
       window.history.pushState(null, '', fullUrl);
     }
 
-    setCurrentRoute(norm.startsWith('/hack') ? '/hack' : '/');
+    setCurrentRoute(norm.startsWith('/admin') ? '/admin' : norm.startsWith('/hack') ? '/hack' : '/');
 
     // Scroll to top on route change if no anchor hash is present
     if (!targetPath.includes('#')) {
@@ -161,7 +165,7 @@ export default function App() {
         return;
       }
 
-      setCurrentRoute(norm.startsWith('/hack') ? '/hack' : '/');
+      setCurrentRoute(norm.startsWith('/admin') ? '/admin' : norm.startsWith('/hack') ? '/hack' : '/');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -197,8 +201,29 @@ export default function App() {
     }
   }, [currentRoute, prefetchMainSite]);
 
+  // Global sound state (synchronized across / and /hack)
+  const [isAudioActive, setIsAudioActive] = useState(true);
+
+  const handleToggleAudio = useCallback(() => {
+    setIsAudioActive((prev) => {
+      const next = !prev;
+      hauntedVoiceManager.setSoundEnabled(next);
+      return next;
+    });
+  }, []);
+
+  const handlePlaybackStarted = useCallback(() => {
+    setIsAudioActive(true);
+  }, []);
+
   return (
     <div id="route-container" style={{ width: '100%', minHeight: '100vh', backgroundColor: '#050505', position: 'relative' }}>
+      {/* Authoritative Haunted Voice Audio Controller (Persistent across / and /hack) */}
+      <HauntedVoice
+        isSoundEnabled={isAudioActive}
+        onPlaybackStarted={handlePlaybackStarted}
+      />
+
       {/* Phase 3 Cinematic Entry Transition Overlay */}
       <div
         id="cinematic-transition-overlay"
@@ -212,7 +237,7 @@ export default function App() {
         aria-hidden="true"
       />
 
-      {currentRoute === '/hack' ? (
+      {currentRoute === '/admin' ? (
         <Suspense
           fallback={
             <div
@@ -227,11 +252,35 @@ export default function App() {
                 fontSize: '14px'
               }}
             >
-              Loading hackathon experience...
+              Loading Organizer Chamber...
             </div>
           }
         >
-          <MainSite />
+          <AdminDashboard onNavigate={navigate} />
+        </Suspense>
+      ) : currentRoute === '/hack' ? (
+        <Suspense
+          fallback={
+            <div
+              style={{
+                minHeight: '100vh',
+                backgroundColor: '#050505',
+                color: '#F4F1EB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '14px'
+              }}
+            >
+              Loading Hack - To - ween experience...
+            </div>
+          }
+        >
+          <MainSite
+            isAudioActive={isAudioActive}
+            onToggleAudio={handleToggleAudio}
+          />
         </Suspense>
       ) : (
         <IntroPage

@@ -60,3 +60,18 @@ describe('Pure Phase Status Function', () => {
     expect(getPhaseStatus(phase6, buildingTime)).toBe('UPCOMING');
   });
 });
+
+describe('Judges Chamber Evaluation Panel', () => {
+  it('contains Jatin Vishwakarma with the exact LinkedIn profile URL', async () => {
+    const { EVENT_CONFIG, JUDGES } = await import('../data/hackathonData');
+    expect(EVENT_CONFIG.judges).toBeDefined();
+    expect(EVENT_CONFIG.judges.length).toBeGreaterThanOrEqual(1);
+
+    const jatin = EVENT_CONFIG.judges.find(j => j.name === 'Jatin Vishwakarma');
+    expect(jatin).toBeDefined();
+    expect(jatin.name).toBe('Jatin Vishwakarma');
+    expect(jatin.linkedinUrl).toBe('https://www.linkedin.com/in/jatin-vishwakarma-563914246/');
+
+    expect(JUDGES).toEqual(EVENT_CONFIG.judges);
+  });
+});

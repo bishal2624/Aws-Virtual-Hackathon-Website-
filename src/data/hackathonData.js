@@ -1,4 +1,4 @@
-// Central Configuration for AWS Virtual Hackathon 2026
+// Central Configuration for Hack - To - ween
 // Strictly follows Section 1 and Section 10 of Master Implementation Prompt
 
 import { RUBRIC_CRITERIA, RUBRIC_TOTAL_POINTS, JUDGE_GUIDELINES } from './rubric';
@@ -80,7 +80,7 @@ export function getPhaseStatus(phaseItem, currentTime = new Date()) {
 }
 
 export const EVENT_CONFIG = {
-  name: 'AWS Virtual Hackathon 2026',
+  name: 'Hack - To - ween',
   theme: 'Haunted Cloud Citadel x Systems Architecture',
   format: 'Fully online',
   headline: 'BUILD BEYOND THE ORDINARY.',
@@ -194,6 +194,13 @@ export const EVENT_CONFIG = {
   rubric: RUBRIC_CRITERIA,
   rubricTotalPoints: RUBRIC_TOTAL_POINTS,
   judgeGuidelines: JUDGE_GUIDELINES,
+  judges: [
+    {
+      id: 'jatin-vishwakarma',
+      name: 'Jatin Vishwakarma',
+      linkedinUrl: 'https://www.linkedin.com/in/jatin-vishwakarma-563914246/'
+    }
+  ],
   prizes: [
     {
       title: 'Overall Winner',
@@ -227,7 +234,7 @@ export const EVENT_CONFIG = {
     },
     {
       question: 'Is this a virtual event?',
-      answer: 'Yes, the AWS Virtual Hackathon 2026 is fully online. Teams collaborate remotely and submit their working cloud builds through this portal.'
+      answer: 'Yes, Hack - To - ween is fully online. Teams collaborate remotely and submit their working cloud builds through this portal.'
     },
     {
       question: 'Can participants form teams and what are the team-size limits?',
@@ -259,3 +266,5 @@ export const EVENT_CONFIG = {
     }
   ]
 };
+
+export const JUDGES = EVENT_CONFIG.judges;

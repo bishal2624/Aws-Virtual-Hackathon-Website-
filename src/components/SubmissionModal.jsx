@@ -145,15 +145,7 @@ export default function SubmissionModal({ isOpen, onClose }) {
         setServerError(data.error || 'Submission failed. Please verify your fields.');
       }
     } catch (err) {
-      // In case dev server has not started backend proxy, record locally with reference
-      const offlineCode = 'SUB-2026-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      setSuccessData({
-        referenceCode: offlineCode,
-        projectName: formData.projectName,
-        teamName: formData.teamName,
-        repoUrl: formData.repoUrl,
-        demoUrl: formData.liveDemoUrl
-      });
+      setServerError('Unable to reach the submission server. Please check your internet connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -302,7 +294,7 @@ export default function SubmissionModal({ isOpen, onClose }) {
               PROJECT SUBMISSION PORTAL
             </div>
             <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '22px', fontWeight: 700, color: '#F4F1EB', marginBottom: '8px' }}>
-              AWS Virtual Hackathon 2026
+              Hack - To - ween
             </h3>
             <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#C8CDD8', marginBottom: '20px' }}>
               Final submission deadline is November 5, 2026 at 23:59 IST. Submissions require a public repository link and live deployed HTTPS demo.
@@ -586,7 +578,7 @@ export default function SubmissionModal({ isOpen, onClose }) {
                     onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
                     style={{ marginTop: '2px', accentColor: '#FF7518' }}
                   />
-                  <span>I certify that this submission represents original work created for AWS Virtual Hackathon 2026, without hardcoded cloud credentials, and adheres to the published 60-point rubric. *</span>
+                  <span>I certify that this submission represents original work created for Hack - To - ween, without hardcoded cloud credentials, and adheres to the published 60-point rubric. *</span>
                 </label>
                 {errors.consent && <div style={{ color: '#FF6B6B', fontSize: '11px', marginTop: '4px' }}>{errors.consent}</div>}
               </div>

@@ -1,0 +1,261 @@
+/* ==========================================================================
+   ChroniclesSection.css - Scoped Dark Gothic Horror Typography for Timeline
+   Event: Hack - To - ween
+   Font: Dystopian Canticle (SIL Open Font License 1.1)
+   ========================================================================== */
+
+#chronicles {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 120px 0;
+  z-index: 10;
+}
+
+/* Timeline Kicker & Section Title */
+#chronicles .chronicles-kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--accent-orange);
+  letter-spacing: 0.14em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#chronicles .chronicles-title {
+  font-family: 'Dystopian Canticle', var(--font-horror-gothic);
+  font-size: clamp(2.4rem, 5.5vw, 4.4rem);
+  line-height: 1.05;
+  font-weight: 400;
+  color: #F4F1EB;
+  margin-bottom: 18px;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 25px rgba(255, 117, 24, 0.2);
+}
+
+#chronicles .chronicles-subtitle {
+  font-size: clamp(1rem, 1.2vw, 1.15rem);
+  line-height: 1.65;
+  color: #C8CDD8;
+  font-family: var(--font-body);
+}
+
+/* Vertical Timeline Container */
+#chronicles .timeline-container {
+  position: relative;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+/* Central Vertical Spine Line */
+#chronicles .timeline-spine {
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 28px;
+  width: 2px;
+  background-color: rgba(200, 205, 216, 0.15);
+}
+
+#chronicles .timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+#chronicles .timeline-item {
+  position: relative;
+  padding-left: 72px;
+}
+
+/* Timeline Node Marker with Phase Number (1-6) */
+#chronicles .timeline-node {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Dystopian Canticle', var(--font-horror-gothic);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  z-index: 2;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#chronicles .timeline-node.status-active {
+  background-color: #A3FF12;
+  color: #050505;
+  box-shadow: 0 0 16px rgba(163, 255, 18, 0.5);
+}
+
+#chronicles .timeline-node.status-completed {
+  background-color: #171717;
+  color: #C8CDD8;
+}
+
+#chronicles .timeline-node.status-upcoming {
+  background-color: #171717;
+  color: var(--accent-orange);
+}
+
+/* Milestone Card */
+#chronicles .timeline-card {
+  background-color: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-md);
+  padding: 24px 28px;
+  transition: border-color var(--transition-standard), transform var(--transition-fast);
+}
+
+#chronicles .timeline-card.active-phase {
+  border: 1px solid var(--accent-green);
+  box-shadow: 0 0 24px rgba(163, 255, 18, 0.12), inset 0 0 12px rgba(163, 255, 18, 0.04);
+}
+
+#chronicles .timeline-card.standard-phase {
+  border: 1px solid rgba(200, 205, 216, 0.12);
+}
+
+#chronicles .timeline-card:hover {
+  border-color: rgba(255, 117, 24, 0.35);
+}
+
+#chronicles .timeline-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Date Label: Gothic horror nuance while crisp & readable */
+#chronicles .timeline-date {
+  font-family: 'Dystopian Canticle', var(--font-horror-gothic);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--accent-orange);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+/* Status Badges: Distinct gothic character, clean & readable */
+#chronicles .timeline-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Dystopian Canticle', var(--font-horror-gothic);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  line-height: 1.2;
+}
+
+/* Milestone Headings: Strong gothic horror font, eerie and sharp */
+#chronicles .timeline-milestone-title {
+  font-family: 'Dystopian Canticle', var(--font-horror-gothic);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.035em;
+  color: #F4F1EB;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+  word-break: break-word;
+}
+
+/* Descriptions: Keep strictly in body font (Inter) for maximum readability */
+#chronicles .timeline-description {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: #C8CDD8;
+  margin: 0;
+}
+
+/* Phase 4 Deadline Notice: strictly in mono font */
+#chronicles .timeline-deadline-notice {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background-color: rgba(255, 117, 24, 0.1);
+  border: 1px solid rgba(255, 117, 24, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: #F4F1EB;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+/* Responsive adjustments across mobile & tablet */
+@media (max-width: 640px) {
+  #chronicles {
+    padding: 80px 0;
+  }
+
+  #chronicles .timeline-spine {
+    left: 20px;
+  }
+
+  #chronicles .timeline-item {
+    padding-left: 56px;
+  }
+
+  #chronicles .timeline-node {
+    left: 8px;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  #chronicles .timeline-card {
+    padding: 18px 20px;
+  }
+
+  #chronicles .timeline-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  #chronicles .timeline-milestone-title {
+    font-size: 1.25rem;
+  }
+
+  #chronicles .timeline-date {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  #chronicles .timeline-item {
+    padding-left: 48px;
+  }
+
+  #chronicles .timeline-node {
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  #chronicles .timeline-card {
+    padding: 14px 14px;
+  }
+}

@@ -4,7 +4,7 @@
  * Resolves paths using import.meta.env.BASE_URL to support both root and non-root deployments.
  */
 
-const BASE_URL = import.meta.env.BASE_URL || '/';
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
 
 /**
  * Normalizes and builds a public asset URL respecting Vite's base path.
@@ -58,7 +58,7 @@ export const MEDIA_CONFIG = {
     id: 'haunted-voice',
     label: 'Cinematic Haunted Voice Recording',
     audioRelativePath: 'assets/audio/haunted-voice.mp3',
-    version: '1.0.0'
+    version: null
   }
 };
 

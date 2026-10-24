@@ -1,6 +1,7 @@
 import React from 'react';
-import { ShieldCheck, CheckSquare, Award } from 'lucide-react';
+import { ShieldCheck, CheckSquare, Award, ExternalLink } from 'lucide-react';
 import { RUBRIC_CRITERIA, RUBRIC_TOTAL_POINTS, JUDGE_GUIDELINES } from '../data/rubric';
+import { EVENT_CONFIG } from '../data/hackathonData';
 
 export default function JudgesSection() {
   return (
@@ -186,6 +187,141 @@ export default function JudgesSection() {
             </div>
           </div>
         </div>
+
+        {/* Official Judges Panel */}
+        {EVENT_CONFIG.judges && EVENT_CONFIG.judges.length > 0 && (
+          <div style={{ marginBottom: '40px' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                color: 'var(--accent-orange)',
+                letterSpacing: '0.14em',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span>PANEL MEMBERS</span>
+              <span>/</span>
+              <span>EVALUATION JUDGES</span>
+            </div>
+
+            <h3
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)',
+                lineHeight: 1.15,
+                fontWeight: 800,
+                color: '#F4F1EB',
+                marginBottom: '24px'
+              }}
+            >
+              THE JUDGES
+            </h3>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 360px))',
+                gap: '24px'
+              }}
+            >
+              {EVENT_CONFIG.judges.map((judge) => (
+                <div
+                  key={judge.id}
+                  className="judge-profile-card"
+                  style={{
+                    backgroundColor: 'rgba(5, 5, 5, 0.85)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 117, 24, 0.35)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '32px 28px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '24px',
+                    boxShadow: '0 0 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 117, 24, 0.05)',
+                    transition: 'border-color var(--transition-standard), transform var(--transition-standard), box-shadow var(--transition-standard)'
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '10px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'rgba(255, 117, 24, 0.12)',
+                        border: '1px solid rgba(255, 117, 24, 0.4)',
+                        color: 'var(--accent-orange)',
+                        marginBottom: '16px'
+                      }}
+                    >
+                      JUDGE
+                    </div>
+
+                    <h4
+                      style={{
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: 'clamp(1.3rem, 2.2vw, 1.6rem)',
+                        fontWeight: 700,
+                        color: '#F4F1EB',
+                        margin: 0,
+                        lineHeight: 1.3
+                      }}
+                    >
+                      {judge.name}
+                    </h4>
+                  </div>
+
+                  <div>
+                    <a
+                      href={judge.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary judge-linkedin-link"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        minHeight: '44px',
+                        padding: '10px 18px',
+                        fontSize: '13px',
+                        fontFamily: 'var(--font-mono)',
+                        borderRadius: 'var(--radius-md)',
+                        textDecoration: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                        style={{ flexShrink: 0, color: 'var(--accent-orange)' }}
+                      >
+                        <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.45a1.62 1.62 0 1 0 0 3.24 1.62 1.62 0 0 0 0-3.24" />
+                      </svg>
+                      <span>View LinkedIn Profile</span>
+                      <ExternalLink size={14} style={{ opacity: 0.8 }} />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Judge Guidelines Box */}
         <div

@@ -66,7 +66,7 @@ export default function GateSection() {
               marginBottom: '28px'
             }}
           >
-            The AWS Virtual Hackathon 2026 brings student builders together in an online arena dedicated to software craftsmanship. Participants form teams, formulate architectures, and build practical cloud-powered applications on AWS infrastructure.
+            Hack - To - ween brings student builders together in an online arena dedicated to software craftsmanship. Participants form teams, formulate architectures, and build practical cloud-powered applications on AWS infrastructure.
           </p>
 
           <p

@@ -167,9 +167,9 @@ export default function IntroPage({ onNavigate, onEnterHack, onPrefetch }) {
             {EVENT_CONFIG.format}
           </div>
 
-          {/* Primary Page H1 (Two lines on desktop for dramatic presence) */}
-          <h1 id="intro-main-heading" className="intro-heading-h1">
-            AWS VIRTUAL<br />HACKATHON 2026
+          {/* Primary Page H1 */}
+          <h1 id="intro-main-heading" className="intro-heading-h1 font-horror-gothic">
+            Hack - To - ween
           </h1>
 
           {/* Descriptive Content Body */}

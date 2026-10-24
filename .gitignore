@@ -26,7 +26,10 @@ test-results/
 *.sqlite
 *.sqlite3
 *.db
+*.db-shm
+*.db-wal
 *.dump
+data/
 
 # IDE and operating system files
 .vscode/

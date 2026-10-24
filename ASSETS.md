@@ -1,5 +1,5 @@
 # ASSET & RESOURCE SPECIFICATION
-## AWS Virtual Hackathon 2026
+## Hack - To - ween
 
 All visual and audio assets in this project are either 100% procedural (generated at runtime via Three.js shaders and HTML5 Canvas API) or self-hosted via permissive open-source packages. No external CDN requests, no proprietary fonts, and no third-party runtime dependencies exist.
 

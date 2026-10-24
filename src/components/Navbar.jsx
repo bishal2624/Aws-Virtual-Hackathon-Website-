@@ -18,21 +18,20 @@ export default function Navbar({
   const drawerRef = useRef(null);
   const firstFocusableRef = useRef(null);
 
-  // Toggle ambient audio safely via pure Web Audio API
   const handleToggleAudio = () => {
     if (propOnToggleAudio) {
       propOnToggleAudio();
       return;
     }
-    if (isAudioActive) {
-      ambientSound.stop();
-      setInternalAudioActive(false);
-    } else {
-      const started = ambientSound.start();
-      if (started) {
-        setInternalAudioActive(true);
+    setInternalAudioActive((prev) => {
+      const next = !prev;
+      if (!next) {
+        try {
+          ambientSound.stop();
+        } catch {}
       }
-    }
+      return next;
+    });
   };
 
   // Keyboard navigation and trap for mobile drawer
@@ -130,7 +129,7 @@ export default function Navbar({
                 lineHeight: 1.2
               }}
             >
-              AWS VIRTUAL HACKATHON
+              Hack - To - ween
             </div>
             <div
               style={{
@@ -302,7 +301,7 @@ export default function Navbar({
           {/* Header of Drawer */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: '15px', fontWeight: 600, color: '#F4F1EB', letterSpacing: '-0.01em' }}>
-              AWS VIRTUAL HACKATHON
+              Hack - To - ween
             </div>
             <button
               ref={firstFocusableRef}
