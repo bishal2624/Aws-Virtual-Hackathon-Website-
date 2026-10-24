@@ -44,13 +44,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.disable('x-powered-by');
 
-// Normalize incoming URL for Vercel Serverless Function routing (handles x-matched-path header)
+// Normalize incoming URL for Vercel Serverless Function routing (handles proxy/rewrite headers)
 app.use((req, res, next) => {
-  const vercelOriginalPath = req.headers['x-matched-path'];
-  if (vercelOriginalPath) {
-    const queryIndex = req.url.indexOf('?');
-    const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
-    req.url = `${vercelOriginalPath}${queryString}`;
+  const originalUri = req.headers['x-forwarded-uri'] || req.headers['x-original-url'];
+  if (originalUri) {
+    req.url = originalUri;
+  } else if (req.headers['x-matched-path']) {
+    const matched = req.headers['x-matched-path'];
+    // Avoid overriding req.url if matched path points to internal function filename
+    if (!matched.includes('/index.') && !matched.endsWith('/index') && matched.startsWith('/api')) {
+      const queryIndex = req.url.indexOf('?');
+      const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
+      req.url = `${matched}${queryString}`;
+    }
   }
   next();
 });
@@ -628,7 +634,7 @@ app.delete('/api/admin/submissions/:id', requireAdminAuth, async (req, res) => {
 });
 
 // 404 Handler for unmatched /api routes
-app.all('/api/{*splat}', (req, res) => {
+app.all(/^\/api(\/.*)?$/, (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 
@@ -636,11 +642,13 @@ app.all('/api/{*splat}', (req, res) => {
 // 4. PRODUCTION STATIC SERVING & ROUTING
 // ==========================================
 
-if (process.env.NODE_ENV === 'production') {
+// In Vercel serverless functions, static file and SPA serving are handled by Vercel Edge.
+// Only register static SPA handler in standalone Node.js production server.
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   const distPath = path.join(__dirname, '../dist');
   app.use(express.static(distPath));
 
-  app.get('/{*splat}', (req, res, next) => {
+  app.get(/.*/, (req, res, next) => {
     if (req.path.startsWith('/api')) {
       return next();
     }
