@@ -628,7 +628,7 @@ app.delete('/api/admin/submissions/:id', requireAdminAuth, async (req, res) => {
 });
 
 // 404 Handler for unmatched /api routes
-app.all(/^\/api\/.*/, (req, res) => {
+app.all('/api/{*splat}', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 
@@ -640,7 +640,7 @@ if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../dist');
   app.use(express.static(distPath));
 
-  app.get('*', (req, res, next) => {
+  app.get('/{*splat}', (req, res, next) => {
     if (req.path.startsWith('/api')) {
       return next();
     }
