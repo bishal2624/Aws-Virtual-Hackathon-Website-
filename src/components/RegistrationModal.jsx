@@ -61,9 +61,14 @@ export default function RegistrationModal({ isOpen, onClose }) {
         body: JSON.stringify(formData)
       });
 
-      const data = await res.json();
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Non-JSON response (e.g. gateway 502/504 or HTML error page)
+      }
 
-      if (res.ok && data.success) {
+      if (res.ok && data?.success) {
         setSuccessData({
           referenceCode: data.referenceCode,
           emailSent: Boolean(data.emailSent),
@@ -82,7 +87,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
           });
         } catch (err) {}
       } else {
-        setServerError(data.error || 'Registration failed. Please verify your details.');
+        setServerError(data?.error || `Registration failed (HTTP ${res.status}). Please verify your details or try again.`);
       }
     } catch (err) {
       setServerError('Unable to reach the registration server. Please check your internet connection and try again.');

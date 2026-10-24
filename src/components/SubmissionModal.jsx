@@ -131,9 +131,14 @@ export default function SubmissionModal({ isOpen, onClose }) {
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Non-JSON response (e.g. gateway 502/504 or HTML error page)
+      }
 
-      if (res.ok && data.success) {
+      if (res.ok && data?.success) {
         setSuccessData({
           referenceCode: data.submissionId,
           projectName: formData.projectName,
@@ -142,7 +147,7 @@ export default function SubmissionModal({ isOpen, onClose }) {
           demoUrl: formData.liveDemoUrl
         });
       } else {
-        setServerError(data.error || 'Submission failed. Please verify your fields.');
+        setServerError(data?.error || `Submission failed (HTTP ${res.status}). Please verify your fields.`);
       }
     } catch (err) {
       setServerError('Unable to reach the submission server. Please check your internet connection and try again.');

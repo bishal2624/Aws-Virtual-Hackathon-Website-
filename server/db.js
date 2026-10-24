@@ -28,7 +28,15 @@ export function getDbProvider() {
  * Initialize SQLite database connection and run schema migrations.
  */
 function initSqlite(dbPath) {
-  const targetPath = dbPath || process.env.SQLITE_DB_PATH || path.join(__dirname, '../data/hackathon.db');
+  let targetPath = dbPath || process.env.SQLITE_DB_PATH;
+  if (!targetPath) {
+    if (process.env.VERCEL) {
+      targetPath = '/tmp/hackathon.db';
+      console.warn('[DATABASE] NOTICE: Running SQLite in ephemeral /tmp on Vercel. Data will not persist across container lifecycles. Configure a managed PostgreSQL DATABASE_URL in Vercel for permanent storage.');
+    } else {
+      targetPath = path.join(__dirname, '../data/hackathon.db');
+    }
+  }
 
   if (targetPath !== ':memory:') {
     const dir = path.dirname(targetPath);
@@ -186,12 +194,16 @@ export async function initDb(options = {}) {
   activeProvider = provider;
 
   if (provider === 'postgres') {
-    pgPoolInstance = await initPostgres(process.env.DATABASE_URL);
+    if (!pgPoolInstance) {
+      pgPoolInstance = await initPostgres(process.env.DATABASE_URL);
+    }
     return { provider: 'postgres' };
   } else {
-    const dbPath = options.inMemory ? ':memory:' : (options.dbPath || process.env.SQLITE_DB_PATH);
-    sqliteInstance = initSqlite(dbPath);
-    return { provider: 'sqlite', path: dbPath || 'data/hackathon.db' };
+    if (!sqliteInstance || options.inMemory || options.dbPath) {
+      const dbPath = options.inMemory ? ':memory:' : (options.dbPath || process.env.SQLITE_DB_PATH);
+      sqliteInstance = initSqlite(dbPath);
+    }
+    return { provider: 'sqlite', path: 'sqlite' };
   }
 }
 

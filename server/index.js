@@ -44,8 +44,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.disable('x-powered-by');
 
-// Trust reverse proxy if configured (e.g., Render, AWS ALB, Cloudflare, Heroku)
-if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
+// Normalize incoming URL for Vercel Serverless Function routing (handles x-matched-path header)
+app.use((req, res, next) => {
+  const vercelOriginalPath = req.headers['x-matched-path'];
+  if (vercelOriginalPath) {
+    const queryIndex = req.url.indexOf('?');
+    const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
+    req.url = `${vercelOriginalPath}${queryString}`;
+  }
+  next();
+});
+
+// Trust reverse proxy if configured or running in Vercel / serverless edge
+if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true' || process.env.VERCEL) {
   app.set('trust proxy', 1);
 }
 
@@ -68,24 +79,58 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration (allow local dev server origin and configured origins)
-const allowedOrigins = process.env.ALLOWED_ORIGINS
+// CORS configuration (allow local dev server, configured origins, Vercel deployments, and public site URL)
+const configuredOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Blocked by CORS policy'));
+    if (!origin) return callback(null, true);
+
+    // Check explicitly configured origins
+    if (configuredOrigins.includes(origin)) return callback(null, true);
+
+    // Check configured PUBLIC_SITE_URL
+    if (process.env.PUBLIC_SITE_URL && origin === process.env.PUBLIC_SITE_URL.replace(/\/$/, '')) {
+      return callback(null, true);
     }
+
+    // Automatically allow *.vercel.app for preview and production deployments of this app
+    try {
+      const parsed = new URL(origin);
+      if (parsed.hostname.endsWith('.vercel.app') || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+        return callback(null, true);
+      }
+    } catch {}
+
+    // Gracefully decline unrecognized origins
+    callback(null, false);
   },
   credentials: true
 }));
 
 app.use(cookieParser());
 app.use(express.json({ limit: '256kb' }));
+
+// Lazy database initialization middleware for serverless requests
+let dbInitPromise = null;
+function ensureDbInit() {
+  if (!dbInitPromise) {
+    dbInitPromise = initDb().catch((err) => {
+      dbInitPromise = null;
+      console.error('[DATABASE] Initialization error during request:', err.message);
+    });
+  }
+  return dbInitPromise;
+}
+
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    await ensureDbInit();
+  }
+  next();
+});
 
 // Rate limiters
 const publicApiLimiter = rateLimit({
@@ -582,6 +627,11 @@ app.delete('/api/admin/submissions/:id', requireAdminAuth, async (req, res) => {
   }
 });
 
+// 404 Handler for unmatched /api routes
+app.all(/^\/api\/.*/, (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
 // ==========================================
 // 4. PRODUCTION STATIC SERVING & ROUTING
 // ==========================================
@@ -605,6 +655,10 @@ if (process.env.NODE_ENV === 'production') {
 
 // Central generic error handler (no stack traces leaked in production)
 app.use((err, req, res, next) => {
+  if (err.message === 'Blocked by CORS policy') {
+    return res.status(403).json({ error: 'Access forbidden by CORS policy' });
+  }
+  console.error('[SERVER] Request processing error:', err.message);
   res.status(500).json({ error: 'A server error occurred. Please try again.' });
 });
 

@@ -2,6 +2,8 @@ import crypto from 'crypto';
 
 // In-memory active session tokens set with expiry timestamps
 const activeSessions = new Map();
+// In-memory revoked session IDs set for immediate invalidation on logout
+const revokedSessions = new Set();
 
 /**
  * Gets secret key for HMAC signing from environment variables.
@@ -66,8 +68,9 @@ export function createSession(username) {
 
   const token = `${payloadBase64}.${signature}`;
 
-  // Store in active sessions map for server-side revocation on logout
+  // Store in active sessions map
   activeSessions.set(sessionId, { username, expiresAt });
+  revokedSessions.delete(sessionId);
 
   return { token, sessionId, expiresAt };
 }
@@ -104,8 +107,8 @@ export function validateSession(token) {
       return null;
     }
 
-    // Check revocation in active session store
-    if (data.sessionId && !activeSessions.has(data.sessionId)) {
+    // Check revocation in revoked sessions store
+    if (data.sessionId && revokedSessions.has(data.sessionId)) {
       return null;
     }
 
@@ -125,6 +128,7 @@ export function revokeSession(token) {
     if (!payloadBase64) return;
     const data = JSON.parse(Buffer.from(payloadBase64, 'base64url').toString('utf8'));
     if (data.sessionId) {
+      revokedSessions.add(data.sessionId);
       activeSessions.delete(data.sessionId);
     }
   } catch {}
