@@ -35,22 +35,36 @@ export function normalizeEmailAddress(addr) {
 export async function verifySmtpConnection() {
   const transport = getTransporter();
   if (!transport) {
+    const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
+    const user = process.env.SMTP_USER || process.env.SMTP_USERNAME || process.env.EMAIL_USER;
+    const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD;
+    const missing = [
+      !host && 'SMTP_HOST',
+      !user && 'SMTP_USER',
+      !pass && 'SMTP_PASS'
+    ].filter(Boolean);
     return {
       ok: false,
-      error: 'SMTP transporter not configured. Ensure SMTP_HOST, SMTP_USER, and SMTP_PASS are set in .env'
+      error: `SMTP transporter not configured. Missing required environment variables: ${missing.join(', ')}`
     };
   }
   try {
     await transport.verify();
+    const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
+    const rawPort = process.env.SMTP_PORT || process.env.EMAIL_PORT;
+    const isGmail = host?.toLowerCase().includes('gmail.com');
+    const port = Number(rawPort) || (isGmail ? 465 : 587);
     return {
       ok: true,
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587
+      host,
+      port
     };
   } catch (err) {
     return {
       ok: false,
-      error: err.message
+      error: err.message,
+      code: err.code || 'UNKNOWN',
+      responseCode: err.responseCode || undefined
     };
   }
 }
@@ -83,25 +97,115 @@ export function setTransporterForTesting(mock) {
 }
 
 /**
+ * Extracts pure email address (e.g. user@gmail.com) from any display or markdown format.
+ * Essential for SMTP authentication: auth.user must be a pure email/login, not RFC 5322 string.
+ */
+export function extractPureEmail(addr) {
+  if (!addr) return '';
+  const str = String(addr).trim();
+  // Strip markdown [display](mailto:email)
+  const mailtoMatch = str.match(/\[.*?\]\(mailto:(.*?)\)/);
+  if (mailtoMatch) return mailtoMatch[1].trim();
+  // Strip RFC 5322 brackets "Display" <email@domain.com>
+  const angleMatch = str.match(/<([^>]+)>/);
+  if (angleMatch) return angleMatch[1].trim();
+  // Strip wrapping quotes
+  return str.replace(/^["']|["']$/g, '').trim();
+}
+
+/**
+ * Normalizes SMTP password (trims, removes quotes, handles 16-char Gmail App Passwords with spaces).
+ */
+export function cleanSmtpPassword(rawPass, host = '') {
+  if (!rawPass) return '';
+  let pass = String(rawPass).trim();
+  pass = pass.replace(/^["']|["']$/g, '').trim();
+  // For Gmail App Passwords: Google generates 16-character keys grouped in 4s with spaces (e.g. "abcd efgh ijkl mnop").
+  // If spaces are present in a 16-char password, strip them so SMTP authentication succeeds.
+  if (host && host.toLowerCase().includes('gmail.com')) {
+    const noSpaces = pass.replace(/\s+/g, '');
+    if (noSpaces.length === 16) {
+      return noSpaces;
+    }
+  }
+  return pass;
+}
+
+/**
+ * Resolves standard RFC 5322 sender address.
+ * Ensures the sender email matches the authenticated Gmail user account to avoid relay rejections.
+ */
+export function getSenderAddress() {
+  const host = (process.env.SMTP_HOST || process.env.EMAIL_HOST || '').toLowerCase();
+  const rawUser = process.env.SMTP_USER || process.env.SMTP_USERNAME || process.env.EMAIL_USER || '';
+  const pureAuthUser = extractPureEmail(rawUser);
+
+  const rawFrom = process.env.SMTP_FROM || process.env.EMAIL_FROM;
+  if (rawFrom) {
+    const normalized = normalizeEmailAddress(rawFrom);
+    // If using Gmail SMTP, Google strictly enforces that the From address matches the authenticated Gmail user.
+    // If the sender address is a generic domain (e.g. no-reply@hacktoween.org), Gmail rejects with 550 / 553 error.
+    if (host.includes('gmail.com') && pureAuthUser) {
+      const fromEmail = extractPureEmail(rawFrom);
+      if (fromEmail !== pureAuthUser) {
+        const displayMatch = normalized.match(/^"([^"]+)"/);
+        const displayName = displayMatch ? displayMatch[1] : 'Hack - To - ween';
+        return `"${displayName}" <${pureAuthUser}>`;
+      }
+    }
+    return normalized;
+  }
+
+  // Default when SMTP_FROM is not explicitly provided:
+  if (pureAuthUser) {
+    return `"Hack - To - ween" <${pureAuthUser}>`;
+  }
+  return 'Hack - To - ween <no-reply@hacktoween.org>';
+}
+
+/**
  * Initializes nodemailer transport if credentials exist in environment variables.
+ * Supports standard variable names (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM)
+ * as well as common serverless aliases (SMTP_PASSWORD, SMTP_USERNAME, EMAIL_USER, EMAIL_PASS).
  */
 function getTransporter() {
   if (customTransporter) return customTransporter;
   if (transporter) return transporter;
 
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT) || 587;
-  const user = normalizeEmailAddress(process.env.SMTP_USER);
-  const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.trim() : '';
+  const host = (process.env.SMTP_HOST || process.env.EMAIL_HOST || '').trim();
+  const rawPort = process.env.SMTP_PORT || process.env.EMAIL_PORT;
+  const isGmail = host.toLowerCase().includes('gmail.com');
+  const port = Number(rawPort) || (isGmail ? 465 : 587);
+
+  const rawUser = process.env.SMTP_USER || process.env.SMTP_USERNAME || process.env.EMAIL_USER || '';
+  const user = extractPureEmail(rawUser);
+
+  const rawPass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || '';
+  const pass = cleanSmtpPassword(rawPass, host);
 
   if (host && user && pass) {
     try {
-      transporter = nodemailer.createTransport({
+      const isPort465 = port === 465;
+      const secure = process.env.SMTP_SECURE !== undefined
+        ? (process.env.SMTP_SECURE === 'true' || process.env.SMTP_SECURE === '1')
+        : isPort465;
+
+      const transportOptions = {
         host,
         port,
-        secure: port === 465,
-        auth: { user, pass }
-      });
+        secure,
+        auth: { user, pass },
+        // Connection timeouts to prevent serverless function hangs
+        connectionTimeout: 10000, // 10s socket connection timeout
+        greetingTimeout: 10000,   // 10s SMTP greeting timeout
+        socketTimeout: 15000      // 15s socket inactivity timeout
+      };
+
+      if (!secure && port === 587) {
+        transportOptions.requireTLS = true;
+      }
+
+      transporter = nodemailer.createTransport(transportOptions);
       return transporter;
     } catch (err) {
       console.warn('[NOTIFICATIONS] Failed to initialize SMTP transporter:', err.message);
@@ -117,7 +221,10 @@ function getTransporter() {
  */
 export function isEmailConfigured() {
   if (customTransporter) return true;
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
+  const user = process.env.SMTP_USER || process.env.SMTP_USERNAME || process.env.EMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD;
+  return Boolean(host && user && pass);
 }
 
 /**
@@ -364,8 +471,7 @@ export async function notifyOrganizerOnRegistration(record) {
       return { sent: false, reason: 'unconfigured' };
     }
 
-    const rawFrom = process.env.SMTP_FROM || process.env.EMAIL_FROM || 'Hack - To - ween <no-reply@hacktoween.org>';
-    const fromAddress = normalizeEmailAddress(rawFrom);
+    const fromAddress = getSenderAddress();
     const subject = `[Hack - To - ween] New Registration: ${record.fullName} (${record.id})`;
     const textBody = `
 New Participant Registration Recorded:
@@ -392,8 +498,10 @@ Access organizer dashboard at: ${process.env.PUBLIC_SITE_URL || 'http://localhos
     console.log(`[NOTIFICATIONS] Organizer notification sent for reference code ${record.id}`);
     return { sent: true };
   } catch (err) {
-    console.error('[NOTIFICATIONS] Failed to deliver organizer notification:', err.message);
-    return { sent: false, error: err.message };
+    const errorCode = err.code || 'UNKNOWN';
+    const responseCode = err.responseCode || (err.response ? String(err.response).slice(0, 100) : 'N/A');
+    console.error(`[NOTIFICATIONS] Failed to deliver organizer notification [Code: ${errorCode}, Response: ${responseCode}]:`, err.message);
+    return { sent: false, error: err.message, code: errorCode };
   }
 }
 
@@ -406,13 +514,15 @@ export async function sendParticipantConfirmation(record) {
     const transport = getTransporter();
     if (!transport) {
       if (process.env.NODE_ENV !== 'test') {
-        console.warn('[NOTIFICATIONS] Participant confirmation email skipped: SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) not configured.');
+        const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
+        const user = process.env.SMTP_USER || process.env.SMTP_USERNAME || process.env.EMAIL_USER;
+        const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD;
+        console.warn(`[NOTIFICATIONS] Participant confirmation email skipped: SMTP not configured (host: ${host ? 'set' : 'missing'}, user: ${user ? 'set' : 'missing'}, pass: ${pass ? 'set' : 'missing'}). Configure SMTP_HOST, SMTP_USER, and SMTP_PASS in Vercel project environment variables.`);
       }
       return { sent: false, reason: 'unconfigured' };
     }
 
-    const rawFrom = process.env.SMTP_FROM || process.env.EMAIL_FROM || 'Hack - To - ween <no-reply@hacktoween.org>';
-    const fromAddress = normalizeEmailAddress(rawFrom);
+    const fromAddress = getSenderAddress();
     const subject = 'Registration Confirmed! 🎃 Welcome to Hack - To - ween';
     const text = generateConfirmationEmailText(record);
     const html = generateConfirmationEmailHtml(record);
@@ -428,7 +538,9 @@ export async function sendParticipantConfirmation(record) {
     console.log(`[NOTIFICATIONS] Participant confirmation email successfully sent to ${record.email} (Ref: ${record.id})`);
     return { sent: true };
   } catch (err) {
-    console.error(`[NOTIFICATIONS] Failed to send participant confirmation email to ${record.email}:`, err.message);
-    return { sent: false, error: err.message };
+    const errorCode = err.code || 'UNKNOWN';
+    const responseCode = err.responseCode || (err.response ? String(err.response).slice(0, 100) : 'N/A');
+    console.error(`[NOTIFICATIONS] Failed to send participant confirmation email to ${record.email} [Code: ${errorCode}, Response: ${responseCode}]:`, err.message);
+    return { sent: false, error: err.message, code: errorCode };
   }
 }

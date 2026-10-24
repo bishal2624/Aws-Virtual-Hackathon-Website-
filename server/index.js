@@ -35,7 +35,8 @@ import {
 } from './auth.js';
 import {
   notifyOrganizerOnRegistration,
-  sendParticipantConfirmation
+  sendParticipantConfirmation,
+  isEmailConfigured
 } from './notifications.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -244,12 +245,14 @@ app.get('/api/health', async (req, res) => {
       status: health.ok ? 'healthy' : 'degraded',
       database: health.ok ? 'connected' : 'disconnected',
       provider: health.provider || 'unknown',
+      emailService: isEmailConfigured() ? 'configured' : 'unconfigured',
       timestamp: getNow().toISOString()
     });
   } catch (err) {
     res.status(503).json({
       status: 'unhealthy',
       database: 'disconnected',
+      emailService: isEmailConfigured() ? 'configured' : 'unconfigured',
       timestamp: getNow().toISOString()
     });
   }
