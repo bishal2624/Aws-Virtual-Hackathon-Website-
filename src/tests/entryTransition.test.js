@@ -1,18 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
+import {
+  COVERING_DURATION_MS,
+  REVEAL_DURATION_MS,
+  TOTAL_TRANSITION_MS,
+  releaseVideoElement,
+  releaseIntroVideoElement
+} from '../utils/entryTransition';
 
 describe('Phase 3 Cinematic Entry Transition Logic', () => {
   it('conforms to the 700ms - 1000ms total transition duration requirement', () => {
-    const COVERING_DURATION_MS = 520;
-    const REVEAL_DURATION_MS = 400;
-    const TOTAL_TRANSITION_MS = COVERING_DURATION_MS + REVEAL_DURATION_MS;
-
+    expect(TOTAL_TRANSITION_MS).toBe(COVERING_DURATION_MS + REVEAL_DURATION_MS);
     expect(TOTAL_TRANSITION_MS).toBeGreaterThanOrEqual(700);
     expect(TOTAL_TRANSITION_MS).toBeLessThanOrEqual(1000);
     expect(TOTAL_TRANSITION_MS).toBe(920);
   });
 
-  it('safely releases hardware video decoder by pausing, stripping src, and calling load()', () => {
-    // Mock HTMLMediaElement
+  it('releases the hardware video decoder by pausing, stripping src, and calling load()', () => {
     const mockSources = [
       { removeAttribute: vi.fn() },
       { removeAttribute: vi.fn() }
@@ -24,18 +27,7 @@ describe('Phase 3 Cinematic Entry Transition Logic', () => {
       load: vi.fn()
     };
 
-    // Simulate release function
-    const releaseVideo = (videoEl) => {
-      if (videoEl) {
-        videoEl.pause();
-        videoEl.removeAttribute('src');
-        const sources = videoEl.querySelectorAll('source');
-        sources.forEach((s) => s.removeAttribute('src'));
-        videoEl.load();
-      }
-    };
-
-    releaseVideo(mockVideo);
+    expect(releaseVideoElement(mockVideo)).toBe(true);
 
     expect(mockVideo.pause).toHaveBeenCalledTimes(1);
     expect(mockVideo.removeAttribute).toHaveBeenCalledWith('src');
@@ -44,55 +36,36 @@ describe('Phase 3 Cinematic Entry Transition Logic', () => {
     expect(mockVideo.load).toHaveBeenCalledTimes(1);
   });
 
-  it('bypasses transition animation immediately when prefers-reduced-motion is active', () => {
-    const mockNavigate = vi.fn();
-    const mockReleaseVideo = vi.fn();
-
-    const handleTransition = ({ prefersReducedMotion, navigate, releaseVideo }) => {
-      if (prefersReducedMotion) {
-        releaseVideo();
-        navigate('/hack');
-        return 'immediate';
-      }
-      return 'animated';
+  it('finds the intro video inside the full-screen background container', () => {
+    const mockVideo = {
+      pause: vi.fn(),
+      removeAttribute: vi.fn(),
+      querySelectorAll: vi.fn().mockReturnValue([]),
+      load: vi.fn()
+    };
+    const root = {
+      querySelector: vi.fn().mockReturnValue(mockVideo)
     };
 
-    // Reduced motion enabled
-    const resReduced = handleTransition({
-      prefersReducedMotion: true,
-      navigate: mockNavigate,
-      releaseVideo: mockReleaseVideo
-    });
-    expect(resReduced).toBe('immediate');
-    expect(mockReleaseVideo).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith('/hack');
-
-    // Standard motion
-    mockNavigate.mockClear();
-    mockReleaseVideo.mockClear();
-    const resStandard = handleTransition({
-      prefersReducedMotion: false,
-      navigate: mockNavigate,
-      releaseVideo: mockReleaseVideo
-    });
-    expect(resStandard).toBe('animated');
-    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(releaseIntroVideoElement(root)).toBe(true);
+    expect(root.querySelector).toHaveBeenCalledWith('.intro-fullscreen-video-bg video');
+    expect(mockVideo.pause).toHaveBeenCalledTimes(1);
   });
 
-  it('prevents multiple concurrent transition triggers (debounce lock)', () => {
-    let isTransitioning = false;
-    const triggerCount = vi.fn();
+  it('is safe when no video or DOM root is present', () => {
+    expect(releaseVideoElement(null)).toBe(false);
+    expect(releaseIntroVideoElement(null)).toBe(false);
+    expect(releaseIntroVideoElement({ querySelector: () => null })).toBe(false);
+  });
 
-    const trigger = () => {
-      if (isTransitioning) return false;
-      isTransitioning = true;
-      triggerCount();
-      return true;
+  it('returns false instead of throwing when media APIs fail', () => {
+    const brokenVideo = {
+      pause: () => { throw new Error('decoder error'); },
+      removeAttribute: vi.fn(),
+      querySelectorAll: vi.fn(),
+      load: vi.fn()
     };
 
-    expect(trigger()).toBe(true);
-    expect(trigger()).toBe(false); // Second rapid click ignored
-    expect(trigger()).toBe(false); // Third rapid click ignored
-    expect(triggerCount).toHaveBeenCalledTimes(1);
+    expect(releaseVideoElement(brokenVideo)).toBe(false);
   });
 });

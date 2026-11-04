@@ -7,8 +7,8 @@ describe('Admin Submissions API & Details Integration', () => {
   let adminCookie = '';
 
   beforeEach(async () => {
-    // Reset clock override to active window
-    setClockOverride(() => new Date('2026-11-02T12:00:00+05:30'));
+    // Reset clock override to the registration window
+    setClockOverride(() => new Date('2026-10-25T12:00:00+05:30'));
 
     // Authenticate organizer
     const loginRes = await request(app)

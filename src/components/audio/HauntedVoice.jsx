@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react';
-import { getHauntedVoiceAudioUrl } from '../../config/media';
+import { useEffect, useRef } from 'react';
 import { hauntedVoiceManager } from '../../utils/hauntedVoiceManager';
 
 /**
@@ -12,13 +11,9 @@ import { hauntedVoiceManager } from '../../utils/hauntedVoiceManager';
  * - Never restarts or interrupts across route changes
  * - Handles Sound On/Off gracefully
  * - No looping, no obsolete narration sources
+ * - Renders no DOM element, so there is no duplicate <audio> instance
  */
-export default function HauntedVoice({
-  src,
-  isSoundEnabled = true,
-  onPlaybackStarted
-}) {
-  const audioUrl = src || getHauntedVoiceAudioUrl();
+export default function HauntedVoice({ isSoundEnabled = true, onPlaybackStarted }) {
   const onPlaybackStartedRef = useRef(onPlaybackStarted);
 
   useEffect(() => {
@@ -48,14 +43,5 @@ export default function HauntedVoice({
     };
   }, []);
 
-  // Hidden audio element for reliable DOM presence and inspection
-  return (
-    <audio
-      id="haunted-voice-audio"
-      src={audioUrl}
-      preload="auto"
-      style={{ display: 'none' }}
-      aria-hidden="true"
-    />
-  );
+  return null;
 }

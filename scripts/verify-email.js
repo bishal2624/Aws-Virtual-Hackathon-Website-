@@ -42,7 +42,7 @@ async function main() {
   // Resend specific checks
   if (host.includes('resend.com')) {
     console.log('[INFO] Detected Resend SMTP provider.');
-    if (fromAddress.includes('resend.dev')) {
+    if (effectiveSender.includes('resend.dev')) {
       console.log('[NOTE] Using Resend default testing domain (resend.dev).');
       console.log('       Per Resend policies, testing emails can ONLY be sent to the email address');
       console.log('       associated with your Resend account. To send to any recipient, verify your domain in Resend.');

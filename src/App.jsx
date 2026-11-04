@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 
 import IntroPage from './pages/Intro/IntroPage';
 import HauntedVoice from './components/audio/HauntedVoice';
 import { hauntedVoiceManager } from './utils/hauntedVoiceManager';
+import {
+  COVERING_DURATION_MS,
+  REVEAL_DURATION_MS,
+  releaseIntroVideoElement
+} from './utils/entryTransition';
 
 // Lazy-load the heavy hackathon site so / pays zero 3D bundle cost
 const MainSite = lazy(() => import('./pages/MainSite'));
@@ -86,18 +91,7 @@ export default function App() {
 
   // Helper to safely release intro video decoder and hardware resources
   const releaseIntroVideo = useCallback(() => {
-    try {
-      const videoEl = document.querySelector('.intro-fullscreen-video-bg video');
-      if (videoEl) {
-        videoEl.pause();
-        videoEl.removeAttribute('src');
-        const sources = videoEl.querySelectorAll('source');
-        sources.forEach((s) => s.removeAttribute('src'));
-        videoEl.load();
-      }
-    } catch {
-      // Safe fallback
-    }
+    releaseIntroVideoElement();
   }, []);
 
   // Cleanup timers on unmount
@@ -140,9 +134,9 @@ export default function App() {
         revealTimerRef.current = setTimeout(() => {
           setTransitionState('idle');
           isTransitioningRef.current = false;
-        }, 400);
+        }, REVEAL_DURATION_MS);
       });
-    }, 520);
+    }, COVERING_DURATION_MS);
   }, [navigate, releaseIntroVideo]);
 
   // Listen to browser Back and Forward navigation events
@@ -287,6 +281,8 @@ export default function App() {
           onNavigate={navigate}
           onEnterHack={handleEnterHack}
           onPrefetch={prefetchMainSite}
+          isAudioActive={isAudioActive}
+          onToggleAudio={handleToggleAudio}
         />
       )}
     </div>

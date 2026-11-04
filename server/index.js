@@ -31,7 +31,9 @@ import {
   createSession,
   revokeSession,
   requireAdminAuth,
-  getSessionCookieOptions
+  getSessionCookieOptions,
+  isAdminAuthConfigured,
+  isSessionSecretConfigured
 } from './auth.js';
 import {
   notifyOrganizerOnRegistration,
@@ -86,33 +88,53 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration (allow local dev server, configured origins, Vercel deployments, and public site URL)
-const configuredOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+// CORS configuration: explicit allowlist only.
+// Configure ALLOWED_ORIGINS (comma-separated) and/or PUBLIC_SITE_URL in production.
+// Vercel provides VERCEL_URL / VERCEL_PROJECT_PRODUCTION_URL for this deployment.
+function normalizeOrigin(value) {
+  return String(value || '').trim().replace(/\/+$/, '');
+}
+
+function buildAllowedOrigins() {
+  const origins = new Set();
+
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(',')
+      .map(normalizeOrigin)
+      .filter(Boolean)
+      .forEach(origin => origins.add(origin));
+  }
+
+  if (process.env.PUBLIC_SITE_URL) {
+    origins.add(normalizeOrigin(process.env.PUBLIC_SITE_URL));
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.add(`https://${normalizeOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL)}`);
+  }
+
+  if (process.env.VERCEL_URL) {
+    origins.add(`https://${normalizeOrigin(process.env.VERCEL_URL)}`);
+  }
+
+  // Local development origins are never allowed in production.
+  if (process.env.NODE_ENV !== 'production') {
+    origins.add('http://localhost:5173');
+    origins.add('http://127.0.0.1:5173');
+    origins.add('http://localhost:4000');
+    origins.add('http://127.0.0.1:4000');
+  }
+
+  return origins;
+}
+
+const allowedOrigins = buildAllowedOrigins();
 
 app.use(cors({
   origin: (origin, callback) => {
+    // Non-browser requests (same-origin, server-to-server, curl) have no Origin header.
     if (!origin) return callback(null, true);
-
-    // Check explicitly configured origins
-    if (configuredOrigins.includes(origin)) return callback(null, true);
-
-    // Check configured PUBLIC_SITE_URL
-    if (process.env.PUBLIC_SITE_URL && origin === process.env.PUBLIC_SITE_URL.replace(/\/$/, '')) {
-      return callback(null, true);
-    }
-
-    // Automatically allow *.vercel.app for preview and production deployments of this app
-    try {
-      const parsed = new URL(origin);
-      if (parsed.hostname.endsWith('.vercel.app') || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
-        return callback(null, true);
-      }
-    } catch {}
-
-    // Gracefully decline unrecognized origins
-    callback(null, false);
+    return callback(null, allowedOrigins.has(normalizeOrigin(origin)));
   },
   credentials: true
 }));
@@ -183,6 +205,26 @@ export function getNow() {
   return clockOverride ? clockOverride() : new Date();
 }
 
+// Event deadlines (IST). Registration closes before the hackathon kicks off;
+// project submissions remain open until the final submission deadline.
+export const REGISTRATION_DEADLINE_MS = new Date('2026-10-30T23:59:59+05:30').getTime();
+export const SUBMISSION_DEADLINE_MS = new Date('2026-11-05T23:59:59+05:30').getTime();
+
+export function getRegistrationStatus(now = getNow()) {
+  return now.getTime() <= REGISTRATION_DEADLINE_MS ? 'OPEN' : 'CLOSED';
+}
+
+// Clamp pagination values so callers cannot request unbounded result sets.
+function clampPagination(page, limit, defaultLimit, maxLimit = 100) {
+  const parsedPage = Number(page);
+  const parsedLimit = Number(limit);
+  const safePage = Number.isFinite(parsedPage) ? Math.max(1, Math.floor(parsedPage)) : 1;
+  const safeLimit = Number.isFinite(parsedLimit)
+    ? Math.max(1, Math.min(maxLimit, Math.floor(parsedLimit)))
+    : defaultLimit;
+  return { page: safePage, limit: safeLimit };
+}
+
 // Block dotfiles and hidden directories with HTTP 404
 app.use((req, res, next) => {
   if (req.path.startsWith('/.') || req.path.includes('/.')) {
@@ -207,11 +249,15 @@ function generateRegistrationsCsv(records) {
 
   const escapeCell = (val) => {
     if (val === null || val === undefined) return '""';
-    const str = String(val);
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str.replace(/"/g, '""')}"`;
+    let str = String(val);
+
+    // Neutralize spreadsheet formula injection. Excel/Sheets treat cells that
+    // start with these characters as formulas even when quoted.
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
     }
-    return `"${str}"`;
+
+    return `"${str.replace(/"/g, '""')}"`;
   };
 
   const lines = [
@@ -260,6 +306,7 @@ app.get('/api/health', async (req, res) => {
 
 // Public Event Configuration Endpoint
 app.get('/api/config', (req, res) => {
+  const now = getNow();
   res.json({
     name: 'Hack - To - ween',
     collaborationBanner: 'AWS SBG IITJ × AWS SBG GSMCOE',
@@ -267,16 +314,24 @@ app.get('/api/config', (req, res) => {
     schedule: {
       kickoffIso: '2026-10-31T00:00:00+05:30',
       submissionDeadlineIso: '2026-11-05T23:59:59+05:30',
+      registrationDeadlineIso: '2026-10-30T23:59:59+05:30',
       timezone: 'Asia/Kolkata (IST)'
     },
-    registrationStatus: 'OPEN',
-    serverTimeIso: getNow().toISOString()
+    registrationStatus: getRegistrationStatus(now),
+    serverTimeIso: now.toISOString()
   });
 });
 
 // Registration API Endpoint with Real Database Persistence & Notifications
 app.post('/api/registrations', registrationLimiter, async (req, res) => {
   try {
+    if (getNow().getTime() > REGISTRATION_DEADLINE_MS) {
+      return res.status(403).json({
+        error: 'Registration is closed. The final registration deadline was October 30, 2026 at 23:59 IST.',
+        registrationStatus: 'CLOSED'
+      });
+    }
+
     const validated = RegistrationSchema.parse(req.body);
 
     // Case-insensitive duplicate email check
@@ -298,14 +353,30 @@ app.post('/api/registrations', registrationLimiter, async (req, res) => {
     // Actual persistent database insert
     const saved = await saveRegistration(record);
 
-    // Send participant confirmation email after successful database persistence
+    // Send participant confirmation email after successful database persistence.
+    // Bound the request latency: SMTP can take tens of seconds when the provider
+    // is slow, so wait at most 1.5s and let delivery continue in the background.
     let emailSent = false;
-    try {
-      const emailResult = await sendParticipantConfirmation(saved);
-      emailSent = Boolean(emailResult?.sent);
-    } catch (notifyErr) {
-      console.error('[NOTIFICATIONS] Unexpected error in confirmation dispatch:', notifyErr.message);
-      emailSent = false;
+    const emailQueued = isEmailConfigured();
+
+    if (emailQueued) {
+      const confirmationPromise = sendParticipantConfirmation(saved)
+        .then((result) => {
+          if (result?.sent) emailSent = true;
+          return result;
+        })
+        .catch((notifyErr) => {
+          console.error('[NOTIFICATIONS] Unexpected error in confirmation dispatch:', notifyErr.message);
+          return { sent: false };
+        });
+
+      await Promise.race([
+        confirmationPromise,
+        new Promise((resolve) => {
+          const timer = setTimeout(resolve, 1500);
+          if (typeof timer.unref === 'function') timer.unref();
+        })
+      ]);
     }
 
     // Non-blocking organizer notification
@@ -318,6 +389,7 @@ app.post('/api/registrations', registrationLimiter, async (req, res) => {
       message: 'Registration successful',
       referenceCode: regId,
       emailSent,
+      emailQueued,
       record: {
         id: regId,
         fullName: record.fullName,
@@ -397,6 +469,12 @@ app.post('/api/submissions', submissionLimiter, async (req, res) => {
 app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
   const { username, password } = req.body || {};
 
+  if (!isAdminAuthConfigured()) {
+    return res.status(503).json({
+      error: 'Organizer authentication is not configured on this server. Set ADMIN_USERNAME and ADMIN_PASSWORD.'
+    });
+  }
+
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
   }
@@ -404,6 +482,12 @@ app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
   const isValid = verifyAdminCredentials(username, password);
   if (!isValid) {
     return res.status(401).json({ error: 'Invalid organizer credentials' });
+  }
+
+  if (!isSessionSecretConfigured() && process.env.NODE_ENV === 'production') {
+    return res.status(503).json({
+      error: 'Organizer sessions are not configured on this server. Set SESSION_SECRET.'
+    });
   }
 
   const session = createSession(username);
@@ -443,6 +527,7 @@ app.get('/api/admin/me', requireAdminAuth, (req, res) => {
 app.get('/api/admin/registrations', requireAdminAuth, async (req, res) => {
   try {
     const { search, trackId, sortBy, sortOrder, page, limit } = req.query;
+    const pagination = clampPagination(page, limit, 10);
 
     const [listResult, metrics] = await Promise.all([
       listRegistrations({
@@ -450,8 +535,8 @@ app.get('/api/admin/registrations', requireAdminAuth, async (req, res) => {
         trackId: trackId ? String(trackId) : '',
         sortBy: sortBy ? String(sortBy) : 'created_at',
         sortOrder: sortOrder ? String(sortOrder) : 'DESC',
-        page: Number(page) || 1,
-        limit: Number(limit) || 10
+        page: pagination.page,
+        limit: pagination.limit
       }),
       getRegistrationMetrics()
     ]);
@@ -497,6 +582,7 @@ app.get('/api/admin/registrations/export.csv', requireAdminAuth, async (req, res
 app.get('/api/admin/submissions', requireAdminAuth, async (req, res) => {
   try {
     const { search, trackId, track, status, sortBy, sortOrder, page, limit } = req.query;
+    const pagination = clampPagination(page, limit, 20);
 
     const listResult = await listSubmissions({
       search: search ? String(search) : '',
@@ -504,8 +590,8 @@ app.get('/api/admin/submissions', requireAdminAuth, async (req, res) => {
       status: status ? String(status) : '',
       sortBy: sortBy ? String(sortBy) : 'created_at',
       sortOrder: sortOrder ? String(sortOrder) : 'DESC',
-      page: Number(page) || 1,
-      limit: Number(limit) || 20
+      page: pagination.page,
+      limit: pagination.limit
     });
 
     return res.json({
@@ -679,6 +765,16 @@ export default app;
 // Run directly if called as main process
 if (process.argv[1] && /server[/\\]index\.js$/.test(process.argv[1])) {
   const PORT = process.env.PORT || 4000;
+
+  if (process.env.NODE_ENV === 'production') {
+    const missing = [];
+    if (!isAdminAuthConfigured()) missing.push('ADMIN_USERNAME and ADMIN_PASSWORD');
+    if (!isSessionSecretConfigured()) missing.push('SESSION_SECRET (or ADMIN_SESSION_SECRET)');
+    if (missing.length > 0) {
+      console.error(`[SERVER] Refusing to start in production. Missing required configuration: ${missing.join('; ')}`);
+      process.exit(1);
+    }
+  }
 
   initDb().then((dbInfo) => {
     console.log(`Database initialized using provider: ${dbInfo.provider}`);

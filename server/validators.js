@@ -1,13 +1,28 @@
 import { z } from 'zod';
 
-// Detect AWS Access Key IDs or Private Key blocks
-const AWS_KEY_REGEX = /AKIA[0-9A-Z]{16}/;
-const PRIVATE_KEY_REGEX = /-----BEGIN[ A-Z0-9_-]+KEY-----/;
+// Detect cloud credentials, provider API tokens, and private key blocks.
+const SECRET_PATTERNS = [
+  /\bAKIA[0-9A-Z]{16}\b/,                       // AWS access key ID
+  /\bASIA[0-9A-Z]{16}\b/,                       // AWS temporary access key ID
+  /-----BEGIN[ A-Z0-9_-]+(?:PRIVATE KEY|CERTIFICATE)-----/,
+  /\bgh[pousr]_[A-Za-z0-9]{36,}\b/,             // GitHub tokens
+  /\bgithub_pat_[A-Za-z0-9_]{22,}\b/,           // GitHub fine-grained token
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/,           // Slack tokens
+  /\bsk-[A-Za-z0-9]{20,}\b/,                    // OpenAI-style secret keys
+  /\bAIza[0-9A-Za-z_-]{35}\b/,                  // Google API keys
+  /\b(?:aws_secret_access_key|secret_access_key|api[_-]?key|access[_-]?token|password|passwd)\s*[:=]\s*\S{8,}/i
+];
 
 function containsSecrets(val) {
   if (typeof val !== 'string') return false;
-  return AWS_KEY_REGEX.test(val) || PRIVATE_KEY_REGEX.test(val);
+  return SECRET_PATTERNS.some(pattern => pattern.test(val));
 }
+
+// The only valid challenge track identifiers.
+const TRACK_IDS = ['track-1', 'track-2', 'track-3', 'track-4'];
+const TrackIdSchema = z.enum(TRACK_IDS, {
+  errorMap: () => ({ message: `Challenge track must be one of: ${TRACK_IDS.join(', ')}` })
+});
 
 // Allowed git host domains for repository URLs
 const ALLOWED_GIT_HOSTS = ['github.com', 'gitlab.com', 'bitbucket.org'];
@@ -41,7 +56,7 @@ export const RegistrationSchema = z.object({
   institution: z.string().trim().min(2, 'Institution must be specified').max(150),
   teamName: z.string().trim().max(100).optional().default(''),
   teamSize: z.coerce.number().int().min(1).max(4).default(1),
-  trackId: z.string().trim().default('track-1'),
+  trackId: TrackIdSchema.default('track-1'),
   consent: z.literal(true, {
     errorMap: () => ({ message: 'You must consent to terms of participation' })
   })
@@ -54,7 +69,7 @@ export const SubmissionSchema = z.object({
   teamName: z.string().trim().min(2, 'Team name is required').max(120),
   leaderName: z.string().trim().min(2, 'Leader name is required').max(100),
   email: z.string().trim().email('Invalid leader email').toLowerCase(),
-  trackId: z.string().trim().min(1, 'Challenge track is required'),
+  trackId: TrackIdSchema,
   description: z.string().trim().min(20, 'Description must be at least 20 characters').max(2000),
   problemStatement: z.string().trim().min(10, 'Problem statement is required').max(1000),
   architectureDescription: z.string().trim().min(20, 'Architecture description must be at least 20 characters').max(2000),

@@ -7,7 +7,7 @@ describe('Admin Deletion API & Integrity', () => {
   let adminCookie = '';
 
   beforeEach(async () => {
-    setClockOverride(() => new Date('2026-11-02T12:00:00+05:30'));
+    setClockOverride(() => new Date('2026-10-25T12:00:00+05:30'));
 
     // Authenticate organizer
     const loginRes = await request(app)

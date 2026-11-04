@@ -1,212 +1,193 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MEDIA_CONFIG, getHauntedVoiceAudioUrl } from '../config/media';
+import { hauntedVoiceManager } from '../utils/hauntedVoiceManager';
 
-describe('Haunted Voice Automatic Audio Integration', () => {
-  let mockAudio;
-  let eventListeners;
+const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+class MockAudio {
+  static instances = [];
+
+  constructor() {
+    MockAudio.instances.push(this);
+    this.id = '';
+    this.src = '';
+    this.preload = '';
+    this.loop = false;
+    this.currentTime = 0;
+    this.duration = 374.87;
+    this.paused = true;
+    this.ended = false;
+    this.listeners = {};
+
+    this.addEventListener = vi.fn((event, callback) => {
+      (this.listeners[event] ||= []).push(callback);
+    });
+    this.removeEventListener = vi.fn((event, callback) => {
+      this.listeners[event] = (this.listeners[event] || []).filter((fn) => fn !== callback);
+    });
+    this.play = vi.fn(() => {
+      this.paused = false;
+      this.ended = false;
+      this.emit('play');
+      return Promise.resolve();
+    });
+    this.pause = vi.fn(() => {
+      this.paused = true;
+      this.emit('pause');
+    });
+  }
+
+  emit(event) {
+    (this.listeners[event] || []).slice().forEach((callback) => callback());
+  }
+}
+
+function createWindowMock() {
+  const listeners = {};
+  return {
+    listeners,
+    addEventListener: vi.fn((event, callback) => {
+      (listeners[event] ||= []).push(callback);
+    }),
+    removeEventListener: vi.fn((event, callback) => {
+      listeners[event] = (listeners[event] || []).filter((fn) => fn !== callback);
+    }),
+    __hauntedVoiceAudio: undefined
+  };
+}
+
+function dispatchWindowEvent(windowMock, event) {
+  (windowMock.listeners[event] || []).slice().forEach((callback) => callback());
+}
+
+describe('Haunted Voice Manager', () => {
+  let windowMock;
 
   beforeEach(() => {
-    eventListeners = {};
-    mockAudio = {
-      src: '',
-      preload: '',
-      loop: false,
-      currentTime: 0,
-      duration: 374.87,
-      paused: true,
-      addEventListener: vi.fn((event, cb) => {
-        eventListeners[event] = cb;
-      }),
-      removeEventListener: vi.fn((event) => {
-        delete eventListeners[event];
-      }),
-      play: vi.fn().mockImplementation(() => {
-        mockAudio.paused = false;
-        return Promise.resolve();
-      }),
-      pause: vi.fn().mockImplementation(() => {
-        mockAudio.paused = true;
-      }),
-      load: vi.fn(),
-      removeAttribute: vi.fn((attr) => {
-        if (attr === 'src') mockAudio.src = '';
-      })
-    };
+    windowMock = createWindowMock();
+    globalThis.window = windowMock;
+    globalThis.Audio = MockAudio;
+    MockAudio.instances = [];
+    hauntedVoiceManager.resetForTesting();
+    hauntedVoiceManager.isSoundEnabled = true;
   });
 
-  // 1. Reserved Asset Path Configuration
-  it('correctly points to the authentic public audio path', () => {
-    expect(MEDIA_CONFIG.hauntedVoice).toBeDefined();
+  afterEach(() => {
+    hauntedVoiceManager.resetForTesting();
+    delete globalThis.window;
+    delete globalThis.Audio;
+  });
+
+  it('points to the authentic public audio path', () => {
     expect(MEDIA_CONFIG.hauntedVoice.id).toBe('haunted-voice');
     expect(MEDIA_CONFIG.hauntedVoice.audioRelativePath).toBe('assets/audio/haunted-voice.mp3');
-
-    const url = getHauntedVoiceAudioUrl();
-    expect(typeof url).toBe('string');
-    expect(url).toContain('assets/audio/haunted-voice.mp3');
+    expect(getHauntedVoiceAudioUrl()).toContain('assets/audio/haunted-voice.mp3');
   });
 
-  // 2. Automatic playback on entry
-  it('attempts to play the recording automatically on website entry', async () => {
-    let hasStarted = false;
-    mockAudio.src = getHauntedVoiceAudioUrl();
-    mockAudio.loop = false;
+  it('creates exactly one Audio instance and binds listeners only once', () => {
+    const first = hauntedVoiceManager.getAudioInstance();
+    const second = hauntedVoiceManager.getAudioInstance();
 
-    const attemptAutoplay = async (audio) => {
-      hasStarted = true;
-      await audio.play();
-    };
+    expect(first).toBe(second);
+    expect(MockAudio.instances).toHaveLength(1);
+    expect(first.src).toContain('haunted-voice.mp3');
+    expect(first.loop).toBe(false);
 
-    await attemptAutoplay(mockAudio);
-
-    expect(mockAudio.play).toHaveBeenCalledTimes(1);
-    expect(mockAudio.paused).toBe(false);
-    expect(mockAudio.loop).toBe(false);
-    expect(hasStarted).toBe(true);
+    // play, pause, and ended listeners bound once despite repeated getAudioInstance calls
+    expect(first.addEventListener).toHaveBeenCalledTimes(3);
+    expect(first.addEventListener.mock.calls.map(([event]) => event).sort()).toEqual(['ended', 'pause', 'play']);
   });
 
-  // 3. Fallback to first user interaction if audible autoplay is blocked
-  it('attaches a one-time interaction fallback when autoplay is blocked by browser policy', async () => {
-    let hasStarted = false;
-    let pendingListenerActive = false;
+  it('attempts autoplay once and does not restart while already playing', async () => {
+    hauntedVoiceManager.attemptAutoplay();
+    await flushPromises();
 
-    mockAudio.play = vi.fn()
-      .mockRejectedValueOnce({ name: 'NotAllowedError', message: 'Autoplay blocked' })
-      .mockResolvedValueOnce(undefined);
+    const audio = hauntedVoiceManager.getAudioInstance();
+    expect(audio.play).toHaveBeenCalledTimes(1);
+    expect(audio.paused).toBe(false);
+    expect(hauntedVoiceManager.getState().isPlaying).toBe(true);
 
-    const setupFallback = () => {
-      pendingListenerActive = true;
-    };
-
-    const onUserInteraction = async (audio) => {
-      if (pendingListenerActive && !hasStarted) {
-        hasStarted = true;
-        pendingListenerActive = false;
-        await audio.play();
-      }
-    };
-
-    // First attempt fails due to autoplay policy
-    try {
-      await mockAudio.play();
-    } catch (err) {
-      if (err.name === 'NotAllowedError') {
-        setupFallback();
-      }
-    }
-
-    expect(pendingListenerActive).toBe(true);
-    expect(hasStarted).toBe(false);
-
-    // User performs first genuine interaction (e.g. click/scroll)
-    await onUserInteraction(mockAudio);
-
-    expect(hasStarted).toBe(true);
-    expect(pendingListenerActive).toBe(false);
-    expect(mockAudio.play).toHaveBeenCalledTimes(2);
+    hauntedVoiceManager.attemptAutoplay();
+    await flushPromises();
+    expect(audio.play).toHaveBeenCalledTimes(1);
   });
 
-  // 4. Sound Off in Navbar immediately pauses playback, preserves position, and cancels pending autoplay
-  it('pauses playback immediately and cancels pending autoplay when sound is turned off', () => {
-    let isPlaying = true;
-    let pendingListenerActive = true;
-    mockAudio.currentTime = 4.2;
+  it('sets up a one-time interaction fallback when autoplay is blocked', async () => {
+    const audio = hauntedVoiceManager.getAudioInstance();
+    audio.play.mockRejectedValueOnce(Object.assign(new Error('Autoplay blocked'), { name: 'NotAllowedError' }));
 
-    const handleSoundOff = (audio) => {
-      audio.pause();
-      isPlaying = false;
-      pendingListenerActive = false; // prevents pending autoplay from starting
-    };
+    hauntedVoiceManager.attemptAutoplay();
+    await flushPromises();
 
-    handleSoundOff(mockAudio);
+    expect(windowMock.listeners.click).toHaveLength(1);
+    expect(audio.play).toHaveBeenCalledTimes(1);
 
-    expect(mockAudio.pause).toHaveBeenCalledTimes(1);
-    expect(mockAudio.currentTime).toBe(4.2); // Position preserved
-    expect(isPlaying).toBe(false);
-    expect(pendingListenerActive).toBe(false);
+    dispatchWindowEvent(windowMock, 'click');
+    await flushPromises();
+
+    expect(audio.play).toHaveBeenCalledTimes(2);
+    expect(windowMock.listeners.click).toHaveLength(0);
+    expect(hauntedVoiceManager.getState().isPlaying).toBe(true);
   });
 
-  // 5. Sound On resumes the same recording from paused position and does not replay if already finished
-  it('resumes the same recording on Sound On from its paused position, and does not replay if finished', async () => {
-    let wasPlaying = true;
-    let isFinished = false;
-    let isPlaying = false;
-    mockAudio.currentTime = 4.2;
+  it('pauses immediately, preserves position, and cancels fallback when sound is turned off', async () => {
+    hauntedVoiceManager.attemptAutoplay();
+    await flushPromises();
 
-    const handleSoundOn = async (audio) => {
-      if (!isFinished && wasPlaying) {
-        await audio.play();
-        isPlaying = true;
-      }
-    };
+    const audio = hauntedVoiceManager.getAudioInstance();
+    audio.currentTime = 42.5;
 
-    await handleSoundOn(mockAudio);
-    expect(mockAudio.play).toHaveBeenCalledTimes(1);
-    expect(isPlaying).toBe(true);
-    expect(mockAudio.currentTime).toBe(4.2);
+    hauntedVoiceManager.setSoundEnabled(false);
 
-    // If it has already finished, do not replay
-    isFinished = true;
-    mockAudio.play.mockClear();
-    await handleSoundOn(mockAudio);
-    expect(mockAudio.play).toHaveBeenCalledTimes(0);
+    expect(audio.pause).toHaveBeenCalledTimes(1);
+    expect(audio.currentTime).toBe(42.5);
+    expect(hauntedVoiceManager.getState().isPlaying).toBe(false);
+    expect(hauntedVoiceManager.getState().isExplicitlyStopped).toBe(true);
+    expect(windowMock.listeners.click || []).toHaveLength(0);
   });
 
-  // 6. Preventing duplicate playback instances across re-renders and scrolling
-  it('prevents duplicate playback instances and ignores re-renders once started', async () => {
-    let playCallCount = 0;
-    let hasStarted = false;
+  it('does not create an Audio instance when sound is disabled before playback', () => {
+    hauntedVoiceManager.setSoundEnabled(false);
 
-    const triggerPlay = async (audio) => {
-      if (hasStarted) return;
-      hasStarted = true;
-      playCallCount++;
-      await audio.play();
-    };
-
-    await triggerPlay(mockAudio);
-    // Simulate multiple re-renders and scroll events
-    await triggerPlay(mockAudio);
-    await triggerPlay(mockAudio);
-
-    expect(playCallCount).toBe(1);
-    expect(mockAudio.play).toHaveBeenCalledTimes(1);
+    expect(MockAudio.instances).toHaveLength(0);
+    expect(hauntedVoiceManager.getState().isSoundEnabled).toBe(false);
   });
 
-  // 7. No looping: audio plays once by default
-  it('ensures loop is disabled so the recording plays once without repeating', () => {
-    mockAudio.loop = false;
-    expect(mockAudio.loop).toBe(false);
+  it('resumes from the preserved position on Sound On, and never replays after finishing', async () => {
+    hauntedVoiceManager.attemptAutoplay();
+    await flushPromises();
+
+    const audio = hauntedVoiceManager.getAudioInstance();
+    audio.currentTime = 42.5;
+
+    hauntedVoiceManager.setSoundEnabled(false);
+    hauntedVoiceManager.setSoundEnabled(true);
+    await flushPromises();
+
+    expect(audio.play).toHaveBeenCalledTimes(2);
+    expect(audio.currentTime).toBe(42.5);
+    expect(hauntedVoiceManager.getState().isPlaying).toBe(true);
+
+    // Simulate natural completion
+    audio.paused = true;
+    audio.ended = true;
+    audio.emit('ended');
+    audio.play.mockClear();
+
+    hauntedVoiceManager.setSoundEnabled(false);
+    hauntedVoiceManager.setSoundEnabled(true);
+    await flushPromises();
+
+    expect(audio.play).not.toHaveBeenCalled();
+    expect(hauntedVoiceManager.getState().isFinished).toBe(true);
   });
 
-  // 8. Audio cleanup on component unmount
-  it('safely cleans up and releases audio resources on unmount', () => {
-    const cleanup = (audio) => {
-      if (audio) {
-        audio.pause();
-        audio.removeAttribute('src');
-        audio.load();
-      }
-    };
+  it('catches rejected play promises without throwing unhandled exceptions', async () => {
+    const audio = hauntedVoiceManager.getAudioInstance();
+    audio.play.mockRejectedValueOnce(new Error('Network error or decode failure'));
 
-    cleanup(mockAudio);
-
-    expect(mockAudio.pause).toHaveBeenCalledTimes(1);
-    expect(mockAudio.removeAttribute).toHaveBeenCalledWith('src');
-    expect(mockAudio.load).toHaveBeenCalledTimes(1);
-    expect(mockAudio.src).toBe('');
-  });
-
-  // 9. Handling rejected promises and missing file safely without crashing
-  it('catches rejected play promises silently without throwing unhandled exceptions', async () => {
-    mockAudio.play = vi.fn().mockRejectedValue(new Error('Network error or decode failure'));
-
-    let threwError = false;
-    try {
-      await mockAudio.play().catch(() => {});
-    } catch {
-      threwError = true;
-    }
-
-    expect(threwError).toBe(false);
+    expect(() => hauntedVoiceManager.attemptAutoplay()).not.toThrow();
+    await flushPromises();
+    expect(hauntedVoiceManager.getState().isPlaying).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { COLLABORATION_BANNER, EVENT_CONFIG } from '../../data/hackathonData';
 import { getIntroVideoUrl, getIntroPosterUrl } from '../../config/media';
 import ManagedVideo from '../../components/media/ManagedVideo';
@@ -9,7 +10,7 @@ import './IntroPage.css';
  * Redesigned to use a full-viewport background video with no rectangular card container.
  * Mounts zero WebGL or 3D canvas elements.
  */
-export default function IntroPage({ onNavigate, onEnterHack, onPrefetch }) {
+export default function IntroPage({ onNavigate, onEnterHack, onPrefetch, isAudioActive = false, onToggleAudio }) {
   const introVideoUrl = getIntroVideoUrl();
   const introPosterUrl = getIntroPosterUrl();
 
@@ -138,16 +139,30 @@ export default function IntroPage({ onNavigate, onEnterHack, onPrefetch }) {
         Skip to content
       </a>
 
-      {/* Top Bar: Skip Intro Link */}
+      {/* Top Bar: Sound control and Skip Intro Link */}
       <header className="intro-top-bar">
-        <a
-          href="/hack"
-          onClick={handleSkipClick}
-          className="intro-skip-intro-link"
-          tabIndex={isTransitioning ? -1 : 0}
-        >
-          Skip intro
-        </a>
+        <div className="intro-top-actions">
+          {onToggleAudio && (
+            <button
+              type="button"
+              onClick={onToggleAudio}
+              className="intro-sound-toggle"
+              aria-pressed={isAudioActive}
+              aria-label={isAudioActive ? 'Turn haunted voice sound off' : 'Turn haunted voice sound on'}
+            >
+              {isAudioActive ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
+              <span>{isAudioActive ? 'Sound on' : 'Sound off'}</span>
+            </button>
+          )}
+          <a
+            href="/hack"
+            onClick={handleSkipClick}
+            className="intro-skip-intro-link"
+            tabIndex={isTransitioning ? -1 : 0}
+          >
+            Skip intro
+          </a>
+        </div>
       </header>
 
       {/* Main Content Stage (Right-aligned, zero card container) */}
