@@ -16,6 +16,7 @@ export default defineConfig({
   test: {
     include: ['src/tests/**/*.test.{js,jsx}'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/public/**'],
-    environment: 'node'
+    environment: 'node',
+    setupFiles: ['src/tests/setup.js']
   }
 });

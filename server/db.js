@@ -31,11 +31,11 @@ function initSqlite(dbPath) {
   let targetPath = dbPath || process.env.SQLITE_DB_PATH;
   if (!targetPath) {
     if (process.env.VERCEL) {
-      targetPath = '/tmp/hackathon.db';
-      console.warn('[DATABASE] NOTICE: Running SQLite in ephemeral /tmp on Vercel. Data will not persist across container lifecycles. Configure a managed PostgreSQL DATABASE_URL in Vercel for permanent storage.');
-    } else {
-      targetPath = path.join(__dirname, '../data/hackathon.db');
+      throw new Error(
+        '[DATABASE] Vercel requires a managed PostgreSQL database. Set DATABASE_URL to a postgres:// or postgresql:// connection string. SQLite files are ephemeral in serverless functions.'
+      );
     }
+    targetPath = path.join(__dirname, '../data/hackathon.db');
   }
 
   if (targetPath !== ':memory:') {
@@ -113,12 +113,31 @@ function initSqlite(dbPath) {
 }
 
 /**
+ * Builds the PostgreSQL TLS configuration.
+ * Verification is enabled by default. DATABASE_SSL_CA may hold a PEM
+ * certificate (literal newlines or \n escapes). Set DATABASE_SSL=false only
+ * for a local database without TLS, or DATABASE_SSL_REJECT_UNAUTHORIZED=false
+ * for a provider that uses a self-signed certificate.
+ */
+function buildPgSslConfig() {
+  if (process.env.DATABASE_SSL === 'false') return false;
+
+  const ssl = { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false' };
+
+  if (process.env.DATABASE_SSL_CA) {
+    ssl.ca = process.env.DATABASE_SSL_CA.replace(/\\n/g, '\n');
+  }
+
+  return ssl;
+}
+
+/**
  * Initialize PostgreSQL pool and run schema migrations.
  */
 async function initPostgres(connectionString) {
   const pool = new pg.Pool({
     connectionString,
-    ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+    ssl: buildPgSslConfig(),
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000
@@ -191,6 +210,13 @@ async function initPostgres(connectionString) {
  */
 export async function initDb(options = {}) {
   const provider = options.provider || getDbProvider();
+
+  if (process.env.VERCEL && provider !== 'postgres') {
+    throw new Error(
+      '[DATABASE] Vercel requires a managed PostgreSQL database. Set DATABASE_URL to a postgres:// or postgresql:// connection string. SQLite is not persistent in serverless functions.'
+    );
+  }
+
   activeProvider = provider;
 
   if (provider === 'postgres') {
@@ -669,7 +695,11 @@ export async function listSubmissions({
     await initDb();
   }
 
-  const offset = Math.max(0, (page - 1) * limit);
+  const safePage = Number.isFinite(Number(page)) ? Math.max(1, Math.floor(Number(page))) : 1;
+  const safeLimit = Number.isFinite(Number(limit))
+    ? Math.max(1, Math.min(100, Math.floor(Number(limit))))
+    : 20;
+  const offset = (safePage - 1) * safeLimit;
   const normalizedOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
   const validSortColumns = {
@@ -722,7 +752,7 @@ export async function listSubmissions({
       ORDER BY ${sortCol} ${normalizedOrder}
       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
     `;
-    const recordsRes = await pgPoolInstance.query(recordsSql, [...queryParams, limit, offset]);
+    const recordsRes = await pgPoolInstance.query(recordsSql, [...queryParams, safeLimit, offset]);
 
     const metricsSql = `
       SELECT
@@ -747,10 +777,10 @@ export async function listSubmissions({
     return {
       submissions: recordsRes.rows.map(normalizeSubmissionRow),
       pagination: {
-        page,
-        limit,
+        page: safePage,
+        limit: safeLimit,
         total: totalCount,
-        totalPages: Math.ceil(totalCount / limit) || 1
+        totalPages: Math.ceil(totalCount / safeLimit) || 1
       },
       metrics: {
         totalSubmissions,
@@ -797,7 +827,7 @@ export async function listSubmissions({
       ORDER BY ${sortCol} ${normalizedOrder}
       LIMIT ? OFFSET ?
     `);
-    const rows = recordsStmt.all(...queryParams, limit, offset);
+    const rows = recordsStmt.all(...queryParams, safeLimit, offset);
 
     const metricsRows = sqliteInstance.prepare(`
       SELECT COUNT(*) as count, track_id, status FROM submissions GROUP BY track_id, status
@@ -816,10 +846,10 @@ export async function listSubmissions({
     return {
       submissions: rows.map(normalizeSubmissionRow),
       pagination: {
-        page,
-        limit,
+        page: safePage,
+        limit: safeLimit,
         total: totalCount,
-        totalPages: Math.ceil(totalCount / limit) || 1
+        totalPages: Math.ceil(totalCount / safeLimit) || 1
       },
       metrics: {
         totalSubmissions,

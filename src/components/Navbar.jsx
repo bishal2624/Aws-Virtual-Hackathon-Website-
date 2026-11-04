@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Volume2, VolumeX, Menu, X, ArrowUpRight, Eye, Sparkles } from 'lucide-react';
 import { COLLABORATION_BANNER } from '../data/hackathonData';
 import { ambientSound } from '../utils/audio';
+import { useDialogFocusTrap } from '../hooks/useDialogFocusTrap';
 
 export default function Navbar({
   onOpenRegister,
@@ -15,8 +16,7 @@ export default function Navbar({
   const [internalAudioActive, setInternalAudioActive] = useState(false);
   const isAudioActive = propIsAudioActive !== undefined ? propIsAudioActive : internalAudioActive;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const drawerRef = useRef(null);
-  const firstFocusableRef = useRef(null);
+  const drawerRef = useDialogFocusTrap(isDrawerOpen, { onEscape: () => setIsDrawerOpen(false) });
 
   const handleToggleAudio = () => {
     if (propOnToggleAudio) {
@@ -33,27 +33,6 @@ export default function Navbar({
       return next;
     });
   };
-
-  // Keyboard navigation and trap for mobile drawer
-  useEffect(() => {
-    if (isDrawerOpen) {
-      document.body.style.overflow = 'hidden';
-      if (firstFocusableRef.current) {
-        firstFocusableRef.current.focus();
-      }
-    } else {
-      document.body.style.overflow = '';
-    }
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isDrawerOpen) {
-        setIsDrawerOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawerOpen]);
 
   const navLinks = [
     { label: 'The Gate', href: '#gate' },
@@ -74,9 +53,9 @@ export default function Navbar({
         left: 0,
         right: 0,
         zIndex: 100,
-        backgroundColor: 'rgba(5, 5, 5, 0.88)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(200, 205, 216, 0.12)',
+        backgroundColor: 'var(--bg-dark)',
+        backdropFilter: 'var(--backdrop-blur, blur(12px))',
+        borderBottom: '1px solid var(--divider-subtle)',
         height: '68px',
         display: 'flex',
         alignItems: 'center'
@@ -167,10 +146,15 @@ export default function Navbar({
                 fontSize: '14px',
                 fontWeight: 500,
                 letterSpacing: '-0.005em',
-                color: '#C8CDD8',
+                color: 'var(--muted-text)',
                 textDecoration: 'none',
-                padding: '6px 4px',
-                transition: 'color var(--transition-fast)'
+                padding: 'var(--space-tiny) var(--space-xxs)',
+                transition: 'color 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:focus-visible': {
+                  color: 'var(--accent-orange)',
+                  outline: '2px solid var(--accent-orange)',
+                  outlineOffset: '2px'
+                }
               }}
             >
               {link.label}
@@ -191,17 +175,21 @@ export default function Navbar({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: isAudioActive ? 'rgba(255, 117, 24, 0.15)' : '#171717',
-              border: `1px solid ${isAudioActive ? '#FF7518' : 'rgba(200, 205, 216, 0.15)'}`,
-              borderRadius: '6px',
-              padding: '6px 12px',
-              color: isAudioActive ? '#FF7518' : '#C8CDD8',
+              backgroundColor: isAudioActive ? 'rgba(255, 117, 24, 0.12)' : 'var(--bg-subtle)',
+              border: `1px solid ${isAudioActive ? '#FF7518' : 'var(--border-subtle)'}`,
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-tiny) var(--space-xxs)',
+              color: isAudioActive ? '#FF7518' : 'var(--muted-text)',
               cursor: 'pointer',
               fontFamily: 'var(--font-body)',
-              fontSize: '13px',
+              fontSize: 'var(--font-small)',
               fontWeight: 500,
               letterSpacing: '0.01em',
-              minHeight: '40px'
+              minHeight: '40px',
+              '&:focus-visible': {
+                outline: '2px solid var(--accent-orange)',
+                outlineOffset: '2px'
+              }
             }}
           >
             {isAudioActive ? <Volume2 size={16} /> : <VolumeX size={16} />}
@@ -219,17 +207,21 @@ export default function Navbar({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: isLowGraphicsMode ? 'rgba(163, 255, 18, 0.15)' : '#171717',
-              border: `1px solid ${isLowGraphicsMode ? '#A3FF12' : 'rgba(200, 205, 216, 0.15)'}`,
-              borderRadius: '6px',
-              padding: '6px 12px',
-              color: isLowGraphicsMode ? '#A3FF12' : '#C8CDD8',
+              backgroundColor: isLowGraphicsMode ? 'rgba(163, 255, 18, 0.12)' : 'var(--bg-subtle)',
+              border: `1px solid ${isLowGraphicsMode ? '#A3FF12' : 'var(--border-subtle)'}`,
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--space-tiny) var(--space-xxs)',
+              color: isLowGraphicsMode ? '#A3FF12' : 'var(--muted-text)',
               cursor: 'pointer',
               fontFamily: 'var(--font-body)',
-              fontSize: '13px',
+              fontSize: 'var(--font-small)',
               fontWeight: 500,
               letterSpacing: '0.01em',
-              minHeight: '40px'
+              minHeight: '40px',
+              '&:focus-visible': {
+                outline: '2px solid var(--accent-orange)',
+                outlineOffset: '2px'
+              }
             }}
           >
             <Eye size={15} />
@@ -245,11 +237,27 @@ export default function Navbar({
             className="btn btn-primary"
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: '13px',
+              fontSize: 'var(--font-small)',
               fontWeight: 600,
               letterSpacing: '0.01em',
-              padding: '8px 18px',
-              minHeight: '40px'
+              padding: 'var(--space-small) var(--space-large)',
+              minHeight: '40px',
+              backgroundColor: 'var(--accent-orange)',
+              color: 'var(--bg-darkest)',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:focus-visible': {
+                outline: '2px solid var(--accent-orange)',
+                outlineOffset: '2px'
+              },
+              '&:hover': {
+                backgroundColor: 'var(--accent-ember)'
+              },
+              '&:active': {
+                backgroundColor: 'var(--accent-ember)'
+              }
             }}
           >
             Register Now
@@ -291,20 +299,20 @@ export default function Navbar({
             position: 'fixed',
             inset: 0,
             zIndex: 200,
-            backgroundColor: '#050505',
+            backgroundColor: 'var(--bg-dark)',
             display: 'flex',
             flexDirection: 'column',
-            padding: '24px 20px',
-            overflowY: 'auto'
+            padding: 'var(--space-large) var(--space-md)',
+            overflowY: 'auto',
+            borderRight: 'var(--divider-subtle)'
           }}
         >
           {/* Header of Drawer */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-xlarge)' }}>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: '15px', fontWeight: 600, color: '#F4F1EB', letterSpacing: '-0.01em' }}>
               Hack - To - ween
             </div>
             <button
-              ref={firstFocusableRef}
               type="button"
               onClick={() => setIsDrawerOpen(false)}
               aria-label="Close navigation menu"
@@ -326,7 +334,7 @@ export default function Navbar({
           </div>
 
           {/* Links */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: 'var(--space-xlarge)' }}>
             {navLinks.map((link) => (
               <a
                 key={link.label}
@@ -337,10 +345,10 @@ export default function Navbar({
                   fontSize: '18px',
                   fontWeight: 500,
                   letterSpacing: '-0.01em',
-                  color: '#C8CDD8',
+                  color: 'var(--muted-text)',
                   textDecoration: 'none',
-                  padding: '8px 0',
-                  borderBottom: '1px solid rgba(200, 205, 216, 0.08)'
+                  padding: 'var(--space-tiny) 0',
+                  borderBottom: '1px solid var(--divider-subtle)'
                 }}
               >
                 {link.label}
@@ -357,14 +365,14 @@ export default function Navbar({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
-                padding: '12px',
-                backgroundColor: '#171717',
-                border: '1px solid rgba(200, 205, 216, 0.2)',
-                borderRadius: '6px',
-                color: '#C8CDD8',
+                gap: 'var(--space-tiny)',
+                padding: 'var(--space-small)',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--muted-text)',
                 fontFamily: 'var(--font-body)',
-                fontSize: '14px',
+                fontSize: 'var(--font-small)',
                 fontWeight: 500,
                 letterSpacing: '0.01em',
                 minHeight: '44px'
@@ -381,14 +389,14 @@ export default function Navbar({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
-                padding: '12px',
-                backgroundColor: '#171717',
-                border: '1px solid rgba(200, 205, 216, 0.2)',
-                borderRadius: '6px',
-                color: '#C8CDD8',
+                gap: 'var(--space-tiny)',
+                padding: 'var(--space-small)',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--muted-text)',
                 fontFamily: 'var(--font-body)',
-                fontSize: '14px',
+                fontSize: 'var(--font-small)',
                 fontWeight: 500,
                 letterSpacing: '0.01em',
                 minHeight: '44px'

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
-import app from '../../server/index.js';
+import app, { setClockOverride } from '../../server/index.js';
 import * as db from '../../server/db.js';
 import {
   setTransporterForTesting,
@@ -16,6 +16,7 @@ describe('Automatic Registration Confirmation Email System', () => {
   let mockTransporter = null;
 
   beforeEach(() => {
+    setClockOverride(() => new Date('2026-10-25T12:00:00+05:30'));
     sentMails = [];
     mockTransporter = {
       sendMail: vi.fn().mockImplementation(async (mailOptions) => {

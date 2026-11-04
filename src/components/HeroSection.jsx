@@ -31,6 +31,11 @@ export default function HeroSection({ onOpenRegister }) {
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
+        // Refresh the screen-reader announcement once per minute from live values
+        if (new Date(now).getSeconds() === 0) {
+          setLiveAnnouncement(`Hackathon countdown: ${days} days, ${hours} hours remaining until kickoff.`);
+        }
+
         setTimeLeft({
           days,
           hours,
@@ -75,16 +80,8 @@ export default function HeroSection({ onOpenRegister }) {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
 
-    // Update accessible aria-live announcement once per minute
-    const minuteInterval = setInterval(() => {
-      setLiveAnnouncement(
-        `Hackathon countdown: ${timeLeft.days} days, ${timeLeft.hours} hours remaining until kickoff.`
-      );
-    }, 60000);
-
     return () => {
       clearInterval(interval);
-      clearInterval(minuteInterval);
     };
   }, []);
 
@@ -112,26 +109,26 @@ export default function HeroSection({ onOpenRegister }) {
         <div
           style={{
             maxWidth: '880px',
-            backgroundColor: 'rgba(5, 5, 5, 0.72)',
-            backdropFilter: 'blur(10px)',
+            backgroundColor: 'var(--bg-light)',
+            backdropFilter: 'var(--backdrop-blur, blur(10px))',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
-            border: '1px solid rgba(200, 205, 216, 0.1)',
-            padding: 'clamp(24px, 5vw, 56px)',
-            marginBottom: '40px'
+            padding: 'var(--space-large)',
+            marginBottom: 'var(--space-xlarge)'
           }}
         >
           {/* Eyebrow Label */}
           <div
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
+              fontSize: 'var(--font-tiny)',
               textTransform: 'uppercase',
               letterSpacing: '0.14em',
               color: 'var(--accent-orange)',
-              marginBottom: '16px',
+              marginBottom: 'var(--space-small)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: 'var(--space-tiny)'
             }}
           >
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--accent-orange)' }} />
@@ -146,9 +143,9 @@ export default function HeroSection({ onOpenRegister }) {
               fontSize: 'clamp(2.4rem, 6.5vw, 5.4rem)',
               lineHeight: 1.05,
               fontWeight: 400,
-              color: '#F4F1EB',
+              color: 'var(--bone-text)',
               letterSpacing: '0.03em',
-              marginBottom: '20px',
+              marginBottom: 'var(--space-md)',
               wordBreak: 'break-word'
             }}
           >
@@ -209,13 +206,13 @@ export default function HeroSection({ onOpenRegister }) {
               display: 'inline-flex',
               flexDirection: 'column',
               alignItems: 'flex-start',
-              padding: '16px 22px',
-              marginBottom: '34px',
-              backgroundColor: 'rgba(255, 153, 0, 0.06)',
-              border: '1px solid rgba(255, 153, 0, 0.35)',
+              padding: 'var(--space-small) var(--space-medium)',
+              marginBottom: 'var(--space-xlarge)',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '8px',
-              boxShadow: '0 0 28px rgba(255, 153, 0, 0.14), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(8px)',
+              boxShadow: 'var(--shadow-md)',
+              backdropFilter: 'var(--backdrop-blur, blur(8px))',
               maxWidth: '100%',
               boxSizing: 'border-box'
             }}
@@ -223,15 +220,15 @@ export default function HeroSection({ onOpenRegister }) {
             <span
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '11px',
+                fontSize: 'var(--font-small)',
                 fontWeight: 700,
-                color: '#9CA3AF',
+                color: 'var(--muted-text)',
                 letterSpacing: '0.14em',
                 textTransform: 'uppercase',
-                marginBottom: '8px',
+                marginBottom: 'var(--space-xxs)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: 'var(--space-tiny)'
               }}
             >
               <span
@@ -239,8 +236,8 @@ export default function HeroSection({ onOpenRegister }) {
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  backgroundColor: '#FF9900',
-                  boxShadow: '0 0 8px #FF9900'
+                  backgroundColor: 'var(--accent-orange)',
+                  boxShadow: '0 0 8px var(--accent-orange)'
                 }}
               />
               IN COLLABORATION WITH
@@ -250,10 +247,10 @@ export default function HeroSection({ onOpenRegister }) {
                 fontFamily: 'var(--font-heading)',
                 fontSize: 'clamp(18px, 2.4vw, 25px)',
                 fontWeight: 800,
-                color: '#FF9900',
+                color: 'var(--accent-orange)',
                 letterSpacing: '0.03em',
                 lineHeight: 1.25,
-                textShadow: '0 0 20px rgba(255, 153, 0, 0.45), 0 0 38px rgba(255, 117, 24, 0.22)',
+                textShadow: '0 0 20px rgba(255, 117, 24, 0.45), 0 0 38px rgba(255, 117, 24, 0.22)',
                 wordBreak: 'break-word',
                 overflowWrap: 'break-word'
               }}
@@ -263,16 +260,24 @@ export default function HeroSection({ onOpenRegister }) {
           </div>
 
           {/* Primary Action Buttons */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-small)' }}>
             <a
               href="#gate"
               className="btn btn-primary"
               style={{
                 textDecoration: 'none',
                 minHeight: '48px',
-                padding: '12px 28px',
-                fontSize: '13px'
+                padding: 'var(--space-small) var(--space-large)',
+                fontSize: 'var(--font-small)',
+                color: 'var(--bg-darkest)',
+                backgroundColor: 'var(--accent-orange)',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 600,
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1)'
               }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-ember)'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-orange)'}
             >
               ENTER THE HAUNTED WORLD
               <ArrowDown size={16} />
@@ -284,9 +289,18 @@ export default function HeroSection({ onOpenRegister }) {
               style={{
                 textDecoration: 'none',
                 minHeight: '48px',
-                padding: '12px 26px',
-                fontSize: '13px'
+                padding: 'var(--space-small) var(--space-large)',
+                fontSize: 'var(--font-small)',
+                color: 'var(--accent-orange)',
+                backgroundColor: 'transparent',
+                border: '2px solid var(--accent-orange)',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 600,
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1)'
               }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,117,24,0.08)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}
             >
               EXPLORE THE HACKATHON
               <ArrowRight size={16} />

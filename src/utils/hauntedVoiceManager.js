@@ -26,6 +26,7 @@ class HauntedVoiceManager {
     this.isExplicitlyStopped = false;
     this.wasPlayingBeforeMute = false;
     this.removeInteractionListeners = null;
+    this.listenersBound = false;
     this.subscribers = new Set();
   }
 
@@ -57,25 +58,29 @@ class HauntedVoiceManager {
       this.audio.src = expectedUrl;
     }
 
-    // Bind event listeners
-    this.audio.addEventListener('play', () => {
-      this.isPlaying = true;
-      this.hasStarted = true;
-      this.wasPlayingBeforeMute = true;
-      this.notifySubscribers();
-    });
+    // Bind event listeners exactly once per Audio instance
+    if (!this.listenersBound) {
+      this.audio.addEventListener('play', () => {
+        this.isPlaying = true;
+        this.hasStarted = true;
+        this.wasPlayingBeforeMute = true;
+        this.notifySubscribers();
+      });
 
-    this.audio.addEventListener('pause', () => {
-      this.isPlaying = false;
-      this.notifySubscribers();
-    });
+      this.audio.addEventListener('pause', () => {
+        this.isPlaying = false;
+        this.notifySubscribers();
+      });
 
-    this.audio.addEventListener('ended', () => {
-      this.isPlaying = false;
-      this.isFinished = true;
-      this.wasPlayingBeforeMute = false;
-      this.notifySubscribers();
-    });
+      this.audio.addEventListener('ended', () => {
+        this.isPlaying = false;
+        this.isFinished = true;
+        this.wasPlayingBeforeMute = false;
+        this.notifySubscribers();
+      });
+
+      this.listenersBound = true;
+    }
 
     return this.audio;
   }
@@ -167,7 +172,8 @@ class HauntedVoiceManager {
     const nextState = Boolean(enabled);
     this.isSoundEnabled = nextState;
 
-    const audio = this.getAudioInstance();
+    // Avoid creating an Audio instance merely to turn sound off before playback.
+    const audio = nextState ? this.getAudioInstance() : this.audio;
 
     if (!nextState) {
       // SOUND OFF: Immediately stop/pause, preserve currentTime, cancel pending fallback
@@ -245,6 +251,30 @@ class HauntedVoiceManager {
       currentTime: this.audio ? this.audio.currentTime : 0,
       duration: this.audio ? this.audio.duration : 0
     };
+  }
+
+  /**
+   * Resets the singleton for isolated tests. Not used in production.
+   */
+  resetForTesting() {
+    this.cleanupInteractionFallback();
+    if (this.audio) {
+      try {
+        this.audio.pause();
+      } catch {}
+    }
+    this.audio = null;
+    this.listenersBound = false;
+    this.isSoundEnabled = true;
+    this.hasStarted = false;
+    this.isPlaying = false;
+    this.isFinished = false;
+    this.isExplicitlyStopped = false;
+    this.wasPlayingBeforeMute = false;
+    this.subscribers.clear();
+    if (typeof window !== 'undefined') {
+      delete window.__hauntedVoiceAudio;
+    }
   }
 }
 

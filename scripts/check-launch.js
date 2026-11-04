@@ -5,15 +5,23 @@ console.log('Running Launch Gate Verification...\n');
 
 let failures = 0;
 
-// 1. Check dist exists
-if (!fs.existsSync('dist') || !fs.existsSync('dist/index.html')) {
-  console.error('[FAIL] dist/index.html does not exist. Run npm run build first.');
+function fail(message) {
+  console.error(`[FAIL] ${message}`);
   failures++;
-} else {
-  console.log('[PASS] Production build artifacts exist in dist/');
 }
 
-// 2. Scan src/ for prohibited characters: emoji, em-dashes (\u2014), en-dashes (\u2013)
+function pass(message) {
+  console.log(`[PASS] ${message}`);
+}
+
+// 1. Production build artifacts
+if (!fs.existsSync('dist') || !fs.existsSync('dist/index.html')) {
+  fail('dist/index.html does not exist. Run npm run build first.');
+} else {
+  pass('Production build artifacts exist in dist/');
+}
+
+// 2. Scan src/ for prohibited characters and placeholder tokens
 const srcDir = 'src';
 function scanDirectory(dir) {
   const files = fs.readdirSync(dir);
@@ -25,55 +33,98 @@ function scanDirectory(dir) {
     } else if (/\.(jsx?|css|html)$/.test(file)) {
       const content = fs.readFileSync(fullPath, 'utf8');
 
-      // Check em dash
-      if (content.includes('\u2014')) {
-        console.error(`[FAIL] Em dash (—) found in ${fullPath}`);
-        failures++;
-      }
-      // Check en dash
-      if (content.includes('\u2013')) {
-        console.error(`[FAIL] En dash (–) found in ${fullPath}`);
-        failures++;
-      }
-      // Check banned buzzwords
+      if (content.includes('\u2014')) fail(`Em dash found in ${fullPath}`);
+      if (content.includes('\u2013')) fail(`En dash found in ${fullPath}`);
+
       const banned = ['unleash', 'cutting-edge', 'next-generation', 'supercharge', 'game-changer', 'unlock the power'];
       for (const word of banned) {
         if (new RegExp(`\\b${word}\\b`, 'i').test(content)) {
-          console.error(`[FAIL] Banned buzzword "${word}" found in ${fullPath}`);
-          failures++;
+          fail(`Banned buzzword "${word}" found in ${fullPath}`);
         }
       }
-      // Check for raw tokens
+
       if (content.includes('[REGISTRATION_URL]')) {
-        console.error(`[FAIL] Raw placeholder token [REGISTRATION_URL] found in ${fullPath}`);
-        failures++;
+        fail(`Raw placeholder token [REGISTRATION_URL] found in ${fullPath}`);
       }
     }
   }
 }
-
 scanDirectory(srcDir);
 
-// 3. Check .gitignore has .env
-const gitignoreContent = fs.readFileSync('.gitignore', 'utf8');
-if (!gitignoreContent.includes('.env')) {
-  console.error('[FAIL] .gitignore does not ignore .env');
-  failures++;
+// 3. Environment protection
+if (!fs.existsSync('.gitignore')) {
+  fail('.gitignore does not exist');
 } else {
-  console.log('[PASS] .gitignore includes .env protection rules');
+  const gitignoreContent = fs.readFileSync('.gitignore', 'utf8');
+  if (!/^\.env$/m.test(gitignoreContent)) {
+    fail('.gitignore does not ignore .env');
+  } else {
+    pass('.gitignore includes .env protection rules');
+  }
 }
 
-// 4. Check .env.example exists and contains no secret values
+// 4. Example environment file must be placeholders only and document required settings
 if (!fs.existsSync('.env.example')) {
-  console.error('[FAIL] .env.example does not exist');
-  failures++;
+  fail('.env.example does not exist');
 } else {
   const exampleContent = fs.readFileSync('.env.example', 'utf8');
-  if (exampleContent.includes('AKIA') || exampleContent.includes('password=') || exampleContent.includes('secret_key=')) {
-    console.error('[FAIL] .env.example contains real secret keys');
-    failures++;
+  if (exampleContent.includes('AKIA') || /password=\S+/.test(exampleContent) || exampleContent.includes('secret_key=')) {
+    fail('.env.example contains real secret keys');
   } else {
-    console.log('[PASS] .env.example contains placeholder names only');
+    pass('.env.example contains placeholder names only');
+  }
+
+  const requiredKeys = [
+    'DATABASE_URL',
+    'SESSION_SECRET',
+    'ADMIN_USERNAME',
+    'ADMIN_PASSWORD',
+    'ALLOWED_ORIGINS',
+    'PUBLIC_SITE_URL'
+  ];
+  for (const key of requiredKeys) {
+    if (!new RegExp(`^${key}=`, 'm').test(exampleContent)) {
+      fail(`.env.example does not document ${key}`);
+    }
+  }
+}
+
+// 5. Deployment entry points and configuration
+for (const requiredFile of ['index.html', 'vercel.json', 'api/index.js', 'server/index.js', 'server/auth.js']) {
+  if (!fs.existsSync(requiredFile)) {
+    fail(`Required deployment file is missing: ${requiredFile}`);
+  }
+}
+
+if (fs.existsSync('vercel.json')) {
+  try {
+    const vercelConfig = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+    if (!Array.isArray(vercelConfig.rewrites) || vercelConfig.rewrites.length === 0) {
+      fail('vercel.json does not define API rewrites');
+    } else {
+      pass('vercel.json is valid and defines rewrites');
+    }
+  } catch (err) {
+    fail(`vercel.json is not valid JSON: ${err.message}`);
+  }
+}
+
+// 6. Runtime engine must support node:sqlite (Node 22.5+)
+if (fs.existsSync('package.json')) {
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  const engine = pkg.engines?.node || '';
+  if (!engine || !engine.includes('22')) {
+    fail(`package.json engines.node must require Node 22.5+ for node:sqlite (found "${engine || 'none'}")`);
+  } else {
+    pass(`package.json declares a compatible Node engine (${engine})`);
+  }
+}
+
+// 7. Removed legacy media must not be referenced
+if (fs.existsSync('src')) {
+  const mediaConfig = fs.readFileSync(path.join('src', 'config', 'media.js'), 'utf8');
+  if (mediaConfig.includes('joker-background')) {
+    fail('src/config/media.js still references the removed Joker background asset');
   }
 }
 

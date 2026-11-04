@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import {
   MEDIA_CONFIG,
   getAssetUrl,
   getIntroVideoUrl,
   getIntroPosterUrl,
-  getJokerVideoUrl,
-  getJokerPosterUrl
+  getHauntedVoiceAudioUrl
 } from '../config/media';
+
+const publicFile = (relativePath) => path.resolve(process.cwd(), 'public', relativePath);
 
 describe('Media Configuration', () => {
   it('defines valid dimensions and paths for intro video', () => {
@@ -18,15 +21,8 @@ describe('Media Configuration', () => {
     expect(MEDIA_CONFIG.intro.posterRelativePath).toBe('assets/videos/horror-intro-poster.jpg');
   });
 
-  it('defines valid dimensions and focal points for joker background video', () => {
-    expect(MEDIA_CONFIG.joker.id).toBe('joker-background');
-    expect(MEDIA_CONFIG.joker.width).toBe(1080);
-    expect(MEDIA_CONFIG.joker.height).toBe(1920);
-    expect(MEDIA_CONFIG.joker.aspectRatio).toBe('9/16');
-    expect(MEDIA_CONFIG.joker.videoRelativePath).toBe('assets/videos/joker-background.mp4');
-    expect(MEDIA_CONFIG.joker.posterRelativePath).toBe('assets/videos/joker-background-poster.jpg');
-    expect(MEDIA_CONFIG.joker.objectPosition.desktop).toBeDefined();
-    expect(MEDIA_CONFIG.joker.objectPosition.mobile).toBeDefined();
+  it('does not retain the unused Joker background asset', () => {
+    expect(MEDIA_CONFIG.joker).toBeUndefined();
   });
 
   it('builds public URLs starting with base path and includes version query if provided', () => {
@@ -45,10 +41,13 @@ describe('Media Configuration', () => {
     expect(typeof getIntroPosterUrl()).toBe('string');
     expect(getIntroPosterUrl()).toContain('horror-intro-poster.jpg');
 
-    expect(typeof getJokerVideoUrl()).toBe('string');
-    expect(getJokerVideoUrl()).toContain('joker-background.mp4');
+    expect(typeof getHauntedVoiceAudioUrl()).toBe('string');
+    expect(getHauntedVoiceAudioUrl()).toContain('haunted-voice.mp3');
+  });
 
-    expect(typeof getJokerPosterUrl()).toBe('string');
-    expect(getJokerPosterUrl()).toContain('joker-background-poster.jpg');
+  it('references media files that actually exist in public/', () => {
+    expect(fs.existsSync(publicFile(MEDIA_CONFIG.intro.videoRelativePath))).toBe(true);
+    expect(fs.existsSync(publicFile(MEDIA_CONFIG.intro.posterRelativePath))).toBe(true);
+    expect(fs.existsSync(publicFile(MEDIA_CONFIG.hauntedVoice.audioRelativePath))).toBe(true);
   });
 });

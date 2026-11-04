@@ -5,21 +5,63 @@ const activeSessions = new Map();
 // In-memory revoked session IDs set for immediate invalidation on logout
 const revokedSessions = new Set();
 
+// Ephemeral development secret. Generated once per process so tokens cannot be
+// forged with a value that is committed to the repository. Production must
+// supply SESSION_SECRET (or the documented ADMIN_SESSION_SECRET alias).
+let ephemeralDevSecret = null;
+
+function isProduction() {
+  return process.env.NODE_ENV === 'production';
+}
+
 /**
  * Gets secret key for HMAC signing from environment variables.
+ * Fails closed in production when no secret is configured.
  */
 function getSessionSecret() {
-  return process.env.SESSION_SECRET || 'hack_to_ween_dev_session_secret_2026_victorian_mansion';
+  const configured = process.env.SESSION_SECRET || process.env.ADMIN_SESSION_SECRET;
+  if (configured && configured.length >= 16) {
+    return configured;
+  }
+
+  if (isProduction()) {
+    const err = new Error('SESSION_SECRET must be configured in production.');
+    err.code = 'SESSION_SECRET_MISSING';
+    throw err;
+  }
+
+  if (!ephemeralDevSecret) {
+    ephemeralDevSecret = crypto.randomBytes(48).toString('hex');
+    console.warn('[AUTH] No SESSION_SECRET configured. Using an ephemeral development secret; sessions will not survive a restart.');
+  }
+  return ephemeralDevSecret;
+}
+
+/**
+ * Returns true when a usable session secret is configured.
+ */
+export function isSessionSecretConfigured() {
+  const configured = process.env.SESSION_SECRET || process.env.ADMIN_SESSION_SECRET;
+  return Boolean(configured && configured.length >= 16);
 }
 
 /**
  * Gets configured admin credentials from environment.
- * Default credentials available only for local development/testing.
+ * There are deliberately no built-in default credentials.
  */
 export function getAdminCredentials() {
-  const username = process.env.ADMIN_USERNAME || 'organizer';
-  const password = process.env.ADMIN_PASSWORD || 'HackToWeen2026!Organizer';
-  return { username, password };
+  return {
+    username: process.env.ADMIN_USERNAME || '',
+    password: process.env.ADMIN_PASSWORD || ''
+  };
+}
+
+/**
+ * Returns true when both organizer credentials are configured.
+ */
+export function isAdminAuthConfigured() {
+  const { username, password } = getAdminCredentials();
+  return Boolean(username && password);
 }
 
 /**
@@ -31,11 +73,13 @@ function deriveKey(password, salt) {
 
 /**
  * Verifies credentials safely using constant-time comparison to prevent timing attacks.
+ * Returns false when organizer authentication is not configured.
  */
 export function verifyAdminCredentials(inputUsername, inputPassword) {
   if (!inputUsername || !inputPassword) return false;
 
   const { username: configuredUsername, password: configuredPassword } = getAdminCredentials();
+  if (!configuredUsername || !configuredPassword) return false;
 
   // Username constant-time comparison
   const inputUserBuf = Buffer.from(String(inputUsername).trim());
@@ -55,6 +99,12 @@ export function verifyAdminCredentials(inputUsername, inputPassword) {
  * Creates a signed session token for an authenticated organizer.
  */
 export function createSession(username) {
+  if (!isAdminAuthConfigured()) {
+    const err = new Error('Organizer authentication is not configured.');
+    err.code = 'ADMIN_AUTH_NOT_CONFIGURED';
+    throw err;
+  }
+
   const sessionId = crypto.randomBytes(24).toString('hex');
   const expiresAt = Date.now() + 8 * 60 * 60 * 1000; // 8-hour session lifetime
 
@@ -86,11 +136,16 @@ export function validateSession(token) {
 
   const [payloadBase64, signature] = parts;
 
-  // Verify HMAC signature
-  const expectedSignature = crypto
-    .createHmac('sha256', getSessionSecret())
-    .update(payloadBase64)
-    .digest('base64url');
+  let expectedSignature;
+  try {
+    expectedSignature = crypto
+      .createHmac('sha256', getSessionSecret())
+      .update(payloadBase64)
+      .digest('base64url');
+  } catch {
+    // Missing production secret: fail closed rather than accepting tokens.
+    return null;
+  }
 
   if (signature.length !== expectedSignature.length) return null;
   if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {

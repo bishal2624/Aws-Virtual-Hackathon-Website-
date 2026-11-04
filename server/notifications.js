@@ -5,6 +5,18 @@ let transporter = null;
 let customTransporter = null;
 
 /**
+ * Masks an email address for logs: j***@example.com
+ */
+export function maskEmail(address) {
+  const str = String(address || '').trim();
+  const at = str.lastIndexOf('@');
+  if (at <= 0) return str ? '***' : '';
+  const local = str.slice(0, at);
+  const domain = str.slice(at + 1);
+  return `${local.slice(0, 1)}***@${domain}`;
+}
+
+/**
  * Normalizes email addresses by stripping markdown link formatting (e.g. [user](mailto:email))
  * and ensuring standard RFC 5322 sender/recipient formatting.
  */
@@ -535,12 +547,12 @@ export async function sendParticipantConfirmation(record) {
       html
     });
 
-    console.log(`[NOTIFICATIONS] Participant confirmation email successfully sent to ${record.email} (Ref: ${record.id})`);
+    console.log(`[NOTIFICATIONS] Participant confirmation email successfully sent to ${maskEmail(record.email)} (Ref: ${record.id})`);
     return { sent: true };
   } catch (err) {
     const errorCode = err.code || 'UNKNOWN';
     const responseCode = err.responseCode || (err.response ? String(err.response).slice(0, 100) : 'N/A');
-    console.error(`[NOTIFICATIONS] Failed to send participant confirmation email to ${record.email} [Code: ${errorCode}, Response: ${responseCode}]:`, err.message);
+    console.error(`[NOTIFICATIONS] Failed to send participant confirmation email to ${maskEmail(record.email)} [Code: ${errorCode}, Response: ${responseCode}]:`, err.message);
     return { sent: false, error: err.message, code: errorCode };
   }
 }

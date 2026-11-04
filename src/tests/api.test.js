@@ -5,8 +5,8 @@ import * as db from '../../server/db.js';
 
 describe('API Endpoints, Server Validation & Database Persistence', () => {
   beforeEach(() => {
-    // Reset clock override before each test to within active submission window
-    setClockOverride(() => new Date('2026-11-02T12:00:00+05:30'));
+    // Reset clock override before each test to within the registration window
+    setClockOverride(() => new Date('2026-10-25T12:00:00+05:30'));
   });
 
   describe('GET /api/config', () => {

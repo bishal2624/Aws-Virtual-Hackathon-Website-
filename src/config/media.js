@@ -37,23 +37,6 @@ export const MEDIA_CONFIG = {
       mobile: '48.5% 28%'
     }
   },
-  joker: {
-    id: 'joker-background',
-    label: 'Joker Background Video',
-    videoRelativePath: 'assets/videos/joker-background.mp4',
-    posterRelativePath: 'assets/videos/joker-background-poster.jpg',
-    webmRelativePath: null,
-    width: 1080,
-    height: 1920,
-    aspectRatio: '9/16',
-    version: '1.0.0',
-    objectFit: 'cover',
-    objectPosition: {
-      desktop: 'center 20%',
-      tablet: 'center 20%',
-      mobile: 'center top'
-    }
-  },
   hauntedVoice: {
     id: 'haunted-voice',
     label: 'Cinematic Haunted Voice Recording',
@@ -68,14 +51,6 @@ export function getIntroVideoUrl() {
 
 export function getIntroPosterUrl() {
   return getAssetUrl(MEDIA_CONFIG.intro.posterRelativePath, MEDIA_CONFIG.intro.version);
-}
-
-export function getJokerVideoUrl() {
-  return getAssetUrl(MEDIA_CONFIG.joker.videoRelativePath, MEDIA_CONFIG.joker.version);
-}
-
-export function getJokerPosterUrl() {
-  return getAssetUrl(MEDIA_CONFIG.joker.posterRelativePath, MEDIA_CONFIG.joker.version);
 }
 
 export function getHauntedVoiceAudioUrl() {

@@ -1,8 +1,10 @@
 import React from 'react';
 import { X, Shield, FileText } from 'lucide-react';
 import { COLLABORATION_BANNER } from '../data/hackathonData';
+import { useDialogFocusTrap } from '../hooks/useDialogFocusTrap';
 
 export function PrivacyModal({ isOpen, onClose }) {
+  const dialogRef = useDialogFocusTrap(isOpen, { onEscape: onClose });
   if (!isOpen) return null;
 
   return (
@@ -24,6 +26,7 @@ export function PrivacyModal({ isOpen, onClose }) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         style={{
           width: '100%',
           maxWidth: '600px',
@@ -91,6 +94,7 @@ export function PrivacyModal({ isOpen, onClose }) {
 }
 
 export function TermsModal({ isOpen, onClose }) {
+  const dialogRef = useDialogFocusTrap(isOpen, { onEscape: onClose });
   if (!isOpen) return null;
 
   return (
@@ -112,6 +116,7 @@ export function TermsModal({ isOpen, onClose }) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         style={{
           width: '100%',
           maxWidth: '600px',
